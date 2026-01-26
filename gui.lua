@@ -20,7 +20,7 @@ local TIME_FILENAME = "musictime.txt"
 local MUSIC_PATH = WORKSPACE_FOLDER .. "/" .. MUSIC_FILENAME
 local BG_PATH = WORKSPACE_FOLDER .. "/" .. BG_FILENAME
 local TIME_PATH = WORKSPACE_FOLDER .. "/" .. TIME_FILENAME
-local ASSETS_REPO = "https://raw.githubusercontent.com/Ryu-Dev-here/assetsfora/main/"
+local ASSETS_REPO = "https://raw.githubusercontent.com/Ryu-Dev-here/assetsfora/main/backlua.png"
 local FALLBACK_BG_ID = "rbxassetid://14241601150"
 
 GUI.Config = {
@@ -117,28 +117,37 @@ function GUI.Init(vars)
     Stroke.Color = GUI.AccentColor
     Stroke.Parent = GUI.MainFrame
 
-    -- Dragging Logic
-    local dragging, dragInput, dragStart, startPos
+    -- Dragging Logic (FIXED)
+    local dragging = false
+    local dragStart
+    local startPos
+
     GUI.MainFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+     if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
             dragStart = input.Position
             startPos = GUI.MainFrame.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then  end
-            end)
         end
     end)
-    GUI.MainFrame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
+    
+    UserInputService.InputEnded:Connect(function(input)
+     if input.UserInputType == Enum.UserInputType.MouseButton1 then
+           dragging = false
+        end
     end)
+
     UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            GUI.MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        GUI.MainFrame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
 
     -- Background
     GUI.BackgroundImage = Instance.new("ImageLabel")
@@ -147,6 +156,9 @@ function GUI.Init(vars)
     GUI.BackgroundImage.ScaleType = Enum.ScaleType.Crop
     GUI.BackgroundImage.ImageTransparency = 0.5
     GUI.BackgroundImage.Parent = GUI.MainFrame
+    GUI.BackgroundImage.ZIndex = 0
+    GUI.MainFrame.ZIndex = 1
+
     local BgCorner = Instance.new("UICorner")
     BgCorner.CornerRadius = UDim.new(0, 16)
     BgCorner.Parent = GUI.BackgroundImage
