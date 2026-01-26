@@ -126,7 +126,7 @@ function GUI.Init(vars)
             startPos = GUI.MainFrame.Position
             
             input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then  end
+                if input.UserInputState == Enum.UserInputState.End then debugging = false dragging = false end
             end)
         end
     end)
