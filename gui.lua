@@ -752,186 +752,272 @@ function GUI.Init(vars)
     VersionBadge.BackgroundTransparency = 0.75
     VersionBadge.Font = Enum.Font.GothamBold
     VersionBadge.TextColor3 = GUI.TextPrimary
-VersionBadge.TextSize = 14
-VersionBadge.ZIndex = 3
-VersionBadge.Parent = Headerlocal BadgeCorner = Instance.new("UICorner")
-BadgeCorner.CornerRadius = UDim.new(0, 14)
-BadgeCorner.Parent = VersionBadgelocal BadgeStroke = Instance.new("UIStroke")
-BadgeStroke.Color = GUI.AccentColor
-BadgeStroke.Thickness = 1
-BadgeStroke.Transparency = 0.5
-BadgeStroke.Parent = VersionBadge-- Stats Container
-local StatsContainer = Instance.new("Frame")
-StatsContainer.Position = UDim2.new(0, 20, 0, 90)
-StatsContainer.Size = UDim2.new(1, -40, 0, 440)
-StatsContainer.BackgroundTransparency = 1
-StatsContainer.ZIndex = 2
-StatsContainer.Parent = GUI.MainFramelocal Layout = Instance.new("UIListLayout")
-Layout.SortOrder = Enum.SortOrder.LayoutOrder
-Layout.Padding = UDim.new(0, 14)
-Layout.Parent = StatsContainer-- Create custom icon function
-local function CreateIconFrame(iconText, color)
-    local IconFrame = Instance.new("Frame")
-    IconFrame.Size = UDim2.new(0, 48, 0, 48)
-    IconFrame.BackgroundColor3 = color
-    IconFrame.BackgroundTransparency = 0.85
-    IconFrame.BorderSizePixel = 0    local IconCorner = Instance.new("UICorner")
-    IconCorner.CornerRadius = UDim.new(0, 12)
-    IconCorner.Parent = IconFrame    local IconStroke = Instance.new("UIStroke")
-    IconStroke.Color = color
-    IconStroke.Thickness = 1.5
-    IconStroke.Transparency = 0.6
-    IconStroke.Parent = IconFrame    local Icon = Instance.new("TextLabel")
-    Icon.Size = UDim2.new(1, 0, 1, 0)
-    Icon.BackgroundTransparency = 1
-    Icon.Font = Enum.Font.GothamBold
-    Icon.Text = iconText
-    Icon.TextColor3 = color
-    Icon.TextSize = 24
-    Icon.Parent = IconFrame    return IconFrame
-endlocal function CreateStatCard(label, value, iconText, iconColor, order)
-    local Card = Instance.new("Frame")
-    Card.Size = UDim2.new(1, 0, 0, 82)
-    Card.BackgroundColor3 = GUI.SurfaceColor
-    Card.BackgroundTransparency = 0.25
-    Card.BorderSizePixel = 0
-    Card.LayoutOrder = order
-    Card.ZIndex = 2
-    Card.Parent = StatsContainer    local CardCorner = Instance.new("UICorner")
-    CardCorner.CornerRadius = UDim.new(0, 14)
-    CardCorner.Parent = Card    local CardStroke = Instance.new("UIStroke")
-    CardStroke.Color = Color3.fromRGB(60, 60, 80)
-    CardStroke.Thickness = 1
-    CardStroke.Transparency = 0.7
-    CardStroke.Parent = Card    -- Hover effect
-    local enterConnection = Card.MouseEnter:Connect(function()
-        SmoothTween(Card, {BackgroundTransparency = 0.1}, 0.2)
-        SmoothTween(CardStroke, {Transparency = 0.4}, 0.2)
-    end)
-    GUI.AddConnection(enterConnection)    local leaveConnection = Card.MouseLeave:Connect(function()
-        SmoothTween(Card, {BackgroundTransparency = 0.25}, 0.2)
-        SmoothTween(CardStroke, {Transparency = 0.7}, 0.2)
-    end)
-    GUI.AddConnection(leaveConnection)    -- Icon
-    local Icon = CreateIconFrame(iconText, iconColor)
-    Icon.Position = UDim2.new(0, 17, 0.5, -24)
-    Icon.Parent = Card    -- Label
-    local Label = Instance.new("TextLabel")
-    Label.Text = label
-    Label.Size = UDim2.new(1, -85, 0, 22)
-    Label.Position = UDim2.new(0, 75, 0, 14)
-    Label.BackgroundTransparency = 1
-    Label.Font = Enum.Font.Gotham
-    Label.TextSize = 14
-    Label.TextColor3 = GUI.TextSecondary
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.ZIndex = 3
-    Label.Parent = Card    -- Value
-    local Value = Instance.new("TextLabel")
-    Value.Text = value
-    Value.Size = UDim2.new(1, -85, 0, 32)
-    Value.Position = UDim2.new(0, 75, 0, 36)
-    Value.BackgroundTransparency = 1
-    Value.Font = Enum.Font.GothamBold
-    Value.TextSize = 22
-    Value.TextColor3 = GUI.TextPrimary
-    Value.TextXAlignment = Enum.TextXAlignment.Left
-    Value.ZIndex = 3
-    Value.TextTruncate = Enum.TextTruncate.AtEnd
-    Value.Parent = Card    return Value
-end-- Create stat cards with custom icons
-vars.TargetLabel = CreateStatCard("Current Target", "Searching...", "◉", GUI.AccentColor, 1)
-vars.StateLabel = CreateStatCard("Status", "Initializing", "⚡", GUI.SecondaryColor, 2)
-vars.BountyLabel = CreateStatCard("Bounty Gained", "+0", "◆", Color3.fromRGB(255, 215, 0), 3)
-vars.TimeLabel = CreateStatCard("Session Time", "00:00:00", "◷", Color3.fromRGB(100, 200, 255), 4)
-vars.KillsLabel = CreateStatCard("Total Eliminations", "0", "✦", Color3.fromRGB(255, 100, 100), 5)-- Session time updater (updates every 1 second, not every frame)
-local sessionStartTime = tick()
-GUI.AddTask(task.spawn(function()
-    while vars.TimeLabel and vars.TimeLabel.Parent do
-        task.wait(1) -- Update every 1 second instead of every frame        local elapsed = tick() - sessionStartTime
-        local hours = math.floor(elapsed / 3600)
-        local minutes = math.floor((elapsed % 3600) / 60)
-        local seconds = math.floor(elapsed % 60)        vars.TimeLabel.Text = string.format("%02d:%02d:%02d", hours, minutes, seconds)
+    VersionBadge.TextSize = 14
+    VersionBadge.ZIndex = 3
+    VersionBadge.Parent = Header
+    
+    local BadgeCorner = Instance.new("UICorner")
+    BadgeCorner.CornerRadius = UDim.new(0, 14)
+    BadgeCorner.Parent = VersionBadge
+    
+    local BadgeStroke = Instance.new("UIStroke")
+    BadgeStroke.Color = GUI.AccentColor
+    BadgeStroke.Thickness = 1
+    BadgeStroke.Transparency = 0.5
+    BadgeStroke.Parent = VersionBadge
+
+    -- Stats Container
+    local StatsContainer = Instance.new("Frame")
+    StatsContainer.Position = UDim2.new(0, 20, 0, 90)
+    StatsContainer.Size = UDim2.new(1, -40, 0, 440)
+    StatsContainer.BackgroundTransparency = 1
+    StatsContainer.ZIndex = 2
+    StatsContainer.Parent = GUI.MainFrame
+    
+    local Layout = Instance.new("UIListLayout")
+    Layout.SortOrder = Enum.SortOrder.LayoutOrder
+    Layout.Padding = UDim.new(0, 14)
+    Layout.Parent = StatsContainer
+
+    -- Create custom icon function
+    local function CreateIconFrame(iconText, color)
+        local IconFrame = Instance.new("Frame")
+        IconFrame.Size = UDim2.new(0, 48, 0, 48)
+        IconFrame.BackgroundColor3 = color
+        IconFrame.BackgroundTransparency = 0.85
+        IconFrame.BorderSizePixel = 0
+        
+        local IconCorner = Instance.new("UICorner")
+        IconCorner.CornerRadius = UDim.new(0, 12)
+        IconCorner.Parent = IconFrame
+        
+        local IconStroke = Instance.new("UIStroke")
+        IconStroke.Color = color
+        IconStroke.Thickness = 1.5
+        IconStroke.Transparency = 0.6
+        IconStroke.Parent = IconFrame
+        
+        local Icon = Instance.new("TextLabel")
+        Icon.Size = UDim2.new(1, 0, 1, 0)
+        Icon.BackgroundTransparency = 1
+        Icon.Font = Enum.Font.GothamBold
+        Icon.Text = iconText
+        Icon.TextColor3 = color
+        Icon.TextSize = 24
+        Icon.Parent = IconFrame
+        
+        return IconFrame
     end
-end))-- Entrance animation
-SmoothTween(GUI.MainFrame, {
-    Size = UDim2.new(0, 400, 0, 560)
-}, 0.7, Enum.EasingStyle.Back)-- Stagger card animations
-GUI.AddTask(task.spawn(function()
-    for i, card in ipairs(StatsContainer:GetChildren()) do
-        if card:IsA("Frame") and card ~= Layout then
-            card.BackgroundTransparency = 1
-            task.wait(0.06)
-            SmoothTween(card, {BackgroundTransparency = 0.25}, 0.5)
+    
+    local function CreateStatCard(label, value, iconText, iconColor, order)
+        local Card = Instance.new("Frame")
+        Card.Size = UDim2.new(1, 0, 0, 82)
+        Card.BackgroundColor3 = GUI.SurfaceColor
+        Card.BackgroundTransparency = 0.25
+        Card.BorderSizePixel = 0
+        Card.LayoutOrder = order
+        Card.ZIndex = 2
+        Card.Parent = StatsContainer
+        
+        local CardCorner = Instance.new("UICorner")
+        CardCorner.CornerRadius = UDim.new(0, 14)
+        CardCorner.Parent = Card
+        
+        local CardStroke = Instance.new("UIStroke")
+        CardStroke.Color = Color3.fromRGB(60, 60, 80)
+        CardStroke.Thickness = 1
+        CardStroke.Transparency = 0.7
+        CardStroke.Parent = Card
+        
+        -- Hover effect
+        local enterConnection = Card.MouseEnter:Connect(function()
+            SmoothTween(Card, {BackgroundTransparency = 0.1}, 0.2)
+            SmoothTween(CardStroke, {Transparency = 0.4}, 0.2)
+        end)
+        GUI.AddConnection(enterConnection)
+        
+        local leaveConnection = Card.MouseLeave:Connect(function()
+            SmoothTween(Card, {BackgroundTransparency = 0.25}, 0.2)
+            SmoothTween(CardStroke, {Transparency = 0.7}, 0.2)
+        end)
+        GUI.AddConnection(leaveConnection)
+        
+        -- Icon
+        local Icon = CreateIconFrame(iconText, iconColor)
+        Icon.Position = UDim2.new(0, 17, 0.5, -24)
+        Icon.Parent = Card
+        
+        -- Label
+        local Label = Instance.new("TextLabel")
+        Label.Text = label
+        Label.Size = UDim2.new(1, -85, 0, 22)
+        Label.Position = UDim2.new(0, 75, 0, 14)
+        Label.BackgroundTransparency = 1
+        Label.Font = Enum.Font.Gotham
+        Label.TextSize = 14
+        Label.TextColor3 = GUI.TextSecondary
+        Label.TextXAlignment = Enum.TextXAlignment.Left
+        Label.ZIndex = 3
+        Label.Parent = Card
+        
+        -- Value
+        local Value = Instance.new("TextLabel")
+        Value.Text = value
+        Value.Size = UDim2.new(1, -85, 0, 32)
+        Value.Position = UDim2.new(0, 75, 0, 36)
+        Value.BackgroundTransparency = 1
+        Value.Font = Enum.Font.GothamBold
+        Value.TextSize = 22
+        Value.TextColor3 = GUI.TextPrimary
+        Value.TextXAlignment = Enum.TextXAlignment.Left
+        Value.ZIndex = 3
+        Value.TextTruncate = Enum.TextTruncate.AtEnd
+        Value.Parent = Card
+        
+        return Value
+    end
+
+    -- Create stat cards with custom icons
+    vars.TargetLabel = CreateStatCard("Current Target", "Searching...", "◉", GUI.AccentColor, 1)
+    vars.StateLabel = CreateStatCard("Status", "Initializing", "⚡", GUI.SecondaryColor, 2)
+    vars.BountyLabel = CreateStatCard("Bounty Gained", "+0", "◆", Color3.fromRGB(255, 215, 0), 3)
+    vars.TimeLabel = CreateStatCard("Session Time", "00:00:00", "◷", Color3.fromRGB(100, 200, 255), 4)
+    vars.KillsLabel = CreateStatCard("Total Eliminations", "0", "✦", Color3.fromRGB(255, 100, 100), 5)
+
+    -- Session time updater (updates every 1 second, not every frame)
+    local sessionStartTime = tick()
+    GUI.AddTask(task.spawn(function()
+        while vars.TimeLabel and vars.TimeLabel.Parent do
+            task.wait(1) -- Update every 1 second instead of every frame
+            
+            local elapsed = tick() - sessionStartTime
+            local hours = math.floor(elapsed / 3600)
+            local minutes = math.floor((elapsed % 3600) / 60)
+            local seconds = math.floor(elapsed % 60)
+            
+            vars.TimeLabel.Text = string.format("%02d:%02d:%02d", hours, minutes, seconds)
+        end
+    end))
+
+    -- Entrance animation
+    SmoothTween(GUI.MainFrame, {
+        Size = UDim2.new(0, 400, 0, 560)
+    }, 0.7, Enum.EasingStyle.Back)
+
+    -- Stagger card animations
+    GUI.AddTask(task.spawn(function()
+        for i, card in ipairs(StatsContainer:GetChildren()) do
+            if card:IsA("Frame") and card ~= Layout then
+                card.BackgroundTransparency = 1
+                task.wait(0.06)
+                SmoothTween(card, {BackgroundTransparency = 0.25}, 0.5)
+            end
+        end
+    end))
+
+    print("[SKIBIDI] GUI initialized")
+
+    -- Logger
+    local Logger = {}
+    
+    function Logger:Log(m) 
+        if vars.StateLabel and vars.StateLabel.Parent then
+            vars.StateLabel.Text = tostring(m)
         end
     end
-end))print("[SKIBIDI] GUI initialized")-- Logger
-local Logger = {}function Logger:Log(m) 
-    if vars.StateLabel and vars.StateLabel.Parent then
-        vars.StateLabel.Text = tostring(m)
+    
+    function Logger:Info(m) 
+        if vars.StateLabel and vars.StateLabel.Parent then
+            vars.StateLabel.Text = tostring(m)
+        end
     end
-endfunction Logger:Info(m) 
-    if vars.StateLabel and vars.StateLabel.Parent then
-        vars.StateLabel.Text = tostring(m)
+    
+    function Logger:Success(m) 
+        if vars.StateLabel and vars.StateLabel.Parent then
+            vars.StateLabel.Text = tostring(m)
+        end
     end
-endfunction Logger:Success(m) 
-    if vars.StateLabel and vars.StateLabel.Parent then
-        vars.StateLabel.Text = tostring(m)
+    
+    function Logger:Warning(m) 
+        if vars.StateLabel and vars.StateLabel.Parent then
+            vars.StateLabel.Text = tostring(m)
+        end
     end
-endfunction Logger:Warning(m) 
-    if vars.StateLabel and vars.StateLabel.Parent then
-        vars.StateLabel.Text = tostring(m)
+    
+    function Logger:Error(m) 
+        if vars.StateLabel and vars.StateLabel.Parent then
+            vars.StateLabel.Text = tostring(m)
+        end
     end
-endfunction Logger:Error(m) 
-    if vars.StateLabel and vars.StateLabel.Parent then
-        vars.StateLabel.Text = tostring(m)
+    
+    function Logger:Target(m) 
+        if vars.TargetLabel and vars.TargetLabel.Parent then
+            vars.TargetLabel.Text = tostring(m)
+        end
     end
-endfunction Logger:Target(m) 
-    if vars.TargetLabel and vars.TargetLabel.Parent then
-        vars.TargetLabel.Text = tostring(m)
-    end
-endreturn Logger
-end-- Cleanup function
+    
+    return Logger
+end
+
+-- Cleanup function
 function GUI.Cleanup()
-print("[SKIBIDI] Starting cleanup...")GUI.SaveMusicState()-- Cancel tweens
-for _, tween in ipairs(GUI.RunningTweens) do
-    pcall(function()
-        if tween then
-            tween:Cancel()
-        end
-    end)
+    print("[SKIBIDI] Starting cleanup...")
+    
+    GUI.SaveMusicState()
+    
+    -- Cancel tweens
+    for _, tween in ipairs(GUI.RunningTweens) do
+        pcall(function()
+            if tween then
+                tween:Cancel()
+            end
+        end)
+    end
+    GUI.RunningTweens = {}
+    
+    -- Cancel tasks
+    for _, taskThread in ipairs(GUI.Tasks) do
+        pcall(function()
+            if taskThread then
+                task.cancel(taskThread)
+            end
+        end)
+    end
+    GUI.Tasks = {}
+    
+    -- Disconnect connections
+    for _, connection in ipairs(GUI.Connections) do
+        pcall(function()
+            if connection and connection.Connected then
+                connection:Disconnect()
+            end
+        end)
+    end
+    GUI.Connections = {}
+    
+    -- Stop music
+    if GUI.MusicSound then
+        pcall(function()
+            GUI.MusicSound:Stop()
+            GUI.MusicSound:Destroy()
+        end)
+        GUI.MusicSound = nil
+    end
+    
+    -- Destroy GUI
+    if GUI.SkibidiGui then
+        pcall(function()
+            GUI.SkibidiGui:Destroy()
+        end)
+        GUI.SkibidiGui = nil
+    end
+    
+    -- Clear references
+    GUI.MainFrame = nil
+    GUI.BackgroundImage = nil
+    GUI.LoadingScreen = nil
+    
+    print("[SKIBIDI] Cleanup complete")
 end
-GUI.RunningTweens = {}-- Cancel tasks
-for _, taskThread in ipairs(GUI.Tasks) do
-    pcall(function()
-        if taskThread then
-            task.cancel(taskThread)
-        end
-    end)
-end
-GUI.Tasks = {}-- Disconnect connections
-for _, connection in ipairs(GUI.Connections) do
-    pcall(function()
-        if connection and connection.Connected then
-            connection:Disconnect()
-        end
-    end)
-end
-GUI.Connections = {}-- Stop music
-if GUI.MusicSound then
-    pcall(function()
-        GUI.MusicSound:Stop()
-        GUI.MusicSound:Destroy()
-    end)
-    GUI.MusicSound = nil
-end-- Destroy GUI
-if GUI.SkibidiGui then
-    pcall(function()
-        GUI.SkibidiGui:Destroy()
-    end)
-    GUI.SkibidiGui = nil
-end-- Clear references
-GUI.MainFrame = nil
-GUI.BackgroundImage = nil
-GUI.LoadingScreen = nilprint("[SKIBIDI] Cleanup complete")
-endreturn GUI
+
+return GUI
