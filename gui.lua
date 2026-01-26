@@ -6,11 +6,13 @@ local Players = game:GetService("Players")
 
 local GUI = {}
 GUI.Config = {}
-GUI.AccentColor = Color3.fromRGB(138, 43, 226) 
 GUI.SkibidiGui = nil
 GUI.MainFrame = nil
 GUI.BackgroundImage = nil
 GUI.MusicSound = nil
+
+-- FIXED: Initialize AccentColor BEFORE any function uses it
+GUI.AccentColor = Color3.fromRGB(138, 43, 226)
 
 -- Configuration
 local WORKSPACE_FOLDER = "cuackerdoing"
@@ -39,7 +41,11 @@ function GUI.SaveMusicState()
 end
 
 function GUI.InitAssets(progressCallback)
-    if makefolder and not isfolder(WORKSPACE_FOLDER) then makefolder(WORKSPACE_FOLDER) end
+    pcall(function()
+        if makefolder and not isfolder(WORKSPACE_FOLDER) then 
+            makefolder(WORKSPACE_FOLDER) 
+        end
+    end)
 
     -- Music
     GUI.MusicSound = Instance.new("Sound")
@@ -51,40 +57,61 @@ function GUI.InitAssets(progressCallback)
     task.spawn(function()
         local function LoadMusic()
             local asset = getcustomasset or getsynasset
-            if asset and isfile(MUSIC_PATH) then
-                GUI.MusicSound.SoundId = asset(MUSIC_PATH)
-                if isfile(TIME_PATH) then
-                    local saved = tonumber(readfile(TIME_PATH))
-                    if saved then GUI.MusicSound.TimePosition = saved end
-                end
-                GUI.MusicSound:Play()
+            if asset and isfile and isfile(MUSIC_PATH) then
+                pcall(function()
+                    GUI.MusicSound.SoundId = asset(MUSIC_PATH)
+                    if isfile(TIME_PATH) then
+                        local saved = tonumber(readfile(TIME_PATH))
+                        if saved then GUI.MusicSound.TimePosition = saved end
+                    end
+                    GUI.MusicSound:Play()
+                end)
             end
         end
-        if not isfile(MUSIC_PATH) then
-            local s, d = pcall(function() return game:HttpGet(ASSETS_REPO .. MUSIC_FILENAME) end)
-            if s and d then writefile(MUSIC_PATH, d) LoadMusic() end
-        else
-            LoadMusic()
-        end
+        
+        pcall(function()
+            if isfile and not isfile(MUSIC_PATH) then
+                local s, d = pcall(function() return game:HttpGet(ASSETS_REPO .. MUSIC_FILENAME) end)
+                if s and d and writefile then 
+                    writefile(MUSIC_PATH, d) 
+                    LoadMusic() 
+                end
+            else
+                LoadMusic()
+            end
+        end)
     end)
 
     -- Image
     task.spawn(function()
         local function LoadBg()
             local asset = getcustomasset or getsynasset
-            if asset and isfile(BG_PATH) and GUI.BackgroundImage then
-                GUI.BackgroundImage.Image = asset(BG_PATH)
+            if asset and isfile and isfile(BG_PATH) and GUI.BackgroundImage then
+                pcall(function()
+                    GUI.BackgroundImage.Image = asset(BG_PATH)
+                end)
             else
-                if GUI.BackgroundImage then GUI.BackgroundImage.Image = FALLBACK_BG_ID end
+                if GUI.BackgroundImage then 
+                    GUI.BackgroundImage.Image = FALLBACK_BG_ID 
+                end
             end
         end
-        if not isfile(BG_PATH) then
-            local s, d = pcall(function() return game:HttpGet(ASSETS_REPO .. BG_FILENAME) end)
-            if s and d then writefile(BG_PATH, d) LoadBg()
-            else if GUI.BackgroundImage then GUI.BackgroundImage.Image = FALLBACK_BG_ID end end
-        else
-            LoadBg()
-        end
+        
+        pcall(function()
+            if isfile and not isfile(BG_PATH) then
+                local s, d = pcall(function() return game:HttpGet(ASSETS_REPO .. BG_FILENAME) end)
+                if s and d and writefile then 
+                    writefile(BG_PATH, d) 
+                    LoadBg()
+                else 
+                    if GUI.BackgroundImage then 
+                        GUI.BackgroundImage.Image = FALLBACK_BG_ID 
+                    end 
+                end
+            else
+                LoadBg()
+            end
+        end)
     end)
 end
 
@@ -97,14 +124,16 @@ function GUI.Init(vars)
     GUI.SkibidiGui.ResetOnSpawn = false
     GUI.SkibidiGui.IgnoreGuiInset = true
     pcall(function() GUI.SkibidiGui.Parent = CoreGui end)
-    if not GUI.SkibidiGui.Parent then GUI.SkibidiGui.Parent = lp:WaitForChild("PlayerGui") end
+    if not GUI.SkibidiGui.Parent then 
+        GUI.SkibidiGui.Parent = lp:WaitForChild("PlayerGui") 
+    end
 
     -- Main Vertical Frame
     GUI.MainFrame = Instance.new("Frame")
     GUI.MainFrame.Name = "MainFrame"
     GUI.MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
     GUI.MainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
-    GUI.MainFrame.Size = UDim2.new(0, 300, 0, 400) -- Vertical aspect ratio
+    GUI.MainFrame.Size = UDim2.new(0, 300, 0, 400)
     GUI.MainFrame.BorderSizePixel = 0
     GUI.MainFrame.Parent = GUI.SkibidiGui
     
@@ -114,7 +143,7 @@ function GUI.Init(vars)
     
     local Stroke = Instance.new("UIStroke")
     Stroke.Thickness = 2
-    Stroke.Color = GUI.AccentColor
+    Stroke.Color = GUI.AccentColor or Color3.fromRGB(138, 43, 226)
     Stroke.Parent = GUI.MainFrame
 
     -- Dragging Logic
@@ -126,17 +155,28 @@ function GUI.Init(vars)
             startPos = GUI.MainFrame.Position
             
             input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then debugging = false dragging = false end
+                if input.UserInputState == Enum.UserInputState.End then 
+                    dragging = false 
+                end
             end)
         end
     end)
+    
     GUI.MainFrame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
+        if input.UserInputType == Enum.UserInputType.MouseMovement then 
+            dragInput = input 
+        end
     end)
+    
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
-            GUI.MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            GUI.MainFrame.Position = UDim2.new(
+                startPos.X.Scale, 
+                startPos.X.Offset + delta.X, 
+                startPos.Y.Scale, 
+                startPos.Y.Offset + delta.Y
+            )
         end
     end)
 
@@ -147,6 +187,7 @@ function GUI.Init(vars)
     GUI.BackgroundImage.ScaleType = Enum.ScaleType.Crop
     GUI.BackgroundImage.ImageTransparency = 0.5
     GUI.BackgroundImage.Parent = GUI.MainFrame
+    
     local BgCorner = Instance.new("UICorner")
     BgCorner.CornerRadius = UDim.new(0, 16)
     BgCorner.Parent = GUI.BackgroundImage
@@ -157,7 +198,7 @@ function GUI.Init(vars)
     Header.Size = UDim2.new(1, 0, 0, 40)
     Header.BackgroundTransparency = 1
     Header.Font = Enum.Font.GothamBlack
-    Header.TextColor3 = Color3.WHITE
+    Header.TextColor3 = Color3.fromRGB(255, 255, 255)
     Header.TextSize = 24
     Header.Parent = GUI.MainFrame
 
@@ -177,10 +218,11 @@ function GUI.Init(vars)
         local F = Instance.new("Frame")
         F.Size = UDim2.new(1, 0, 0, 30)
         F.BackgroundTransparency = 0.8
-        F.BackgroundColor3 = Color3.BLACK
+        F.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
         F.Parent = StatusContainer
         
         local C = Instance.new("UICorner")
+        C.CornerRadius = UDim.new(0, 8)
         C.Parent = F
         
         local L = Instance.new("TextLabel")
@@ -190,6 +232,7 @@ function GUI.Init(vars)
         L.Text = label
         L.TextColor3 = Color3.fromRGB(200, 200, 200)
         L.Font = Enum.Font.Gotham
+        L.TextSize = 14
         L.TextXAlignment = Enum.TextXAlignment.Left
         L.Parent = F
         
@@ -198,26 +241,61 @@ function GUI.Init(vars)
         V.Position = UDim2.new(0.45, 0, 0, 0)
         V.BackgroundTransparency = 1
         V.Text = val
-        V.TextColor3 = GUI.AccentColor
+        V.TextColor3 = GUI.AccentColor or Color3.fromRGB(138, 43, 226)
         V.Font = Enum.Font.GothamBold
+        V.TextSize = 14
         V.TextXAlignment = Enum.TextXAlignment.Right
         V.Parent = F
+        
         return V
     end
 
+    -- Initialize all labels
     vars.TargetLabel = CreateRow("Target:", "None")
     vars.StateLabel = CreateRow("State:", "Idle")
     vars.BountyLabel = CreateRow("Bounty:", "+0")
     vars.TimeLabel = CreateRow("Time:", "00:00:00")
     vars.FarmedLabel = CreateRow("Farmed:", "0")
 
+    -- Logger object
     local Logger = {}
-    function Logger:Log(m) vars.StateLabel.Text = m end
-    function Logger:Info(m) vars.StateLabel.Text = "ℹ️ " .. m end
-    function Logger:Success(m) vars.StateLabel.Text = "✅ " .. m end
-    function Logger:Warning(m) vars.StateLabel.Text = "⚠️ " .. m end
-    function Logger:Error(m) vars.StateLabel.Text = "❌ " .. m end
-    function Logger:Target(m) vars.TargetLabel.Text = m end
+    
+    function Logger:Log(m) 
+        if vars.StateLabel then
+            vars.StateLabel.Text = tostring(m)
+        end
+    end
+    
+    function Logger:Info(m) 
+        if vars.StateLabel then
+            vars.StateLabel.Text = "ℹ️ " .. tostring(m)
+        end
+    end
+    
+    function Logger:Success(m) 
+        if vars.StateLabel then
+            vars.StateLabel.Text = "✅ " .. tostring(m)
+        end
+    end
+    
+    function Logger:Warning(m) 
+        if vars.StateLabel then
+            vars.StateLabel.Text = "⚠️ " .. tostring(m)
+        end
+    end
+    
+    function Logger:Error(m) 
+        if vars.StateLabel then
+            vars.StateLabel.Text = "❌ " .. tostring(m)
+        end
+    end
+    
+    function Logger:Target(m) 
+        if vars.TargetLabel then
+            vars.TargetLabel.Text = tostring(m)
+        end
+    end
+    
     return Logger
 end
 
