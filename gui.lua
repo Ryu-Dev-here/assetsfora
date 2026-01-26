@@ -20,7 +20,7 @@ local TIME_FILENAME = "musictime.txt"
 local MUSIC_PATH = WORKSPACE_FOLDER .. "/" .. MUSIC_FILENAME
 local BG_PATH = WORKSPACE_FOLDER .. "/" .. BG_FILENAME
 local TIME_PATH = WORKSPACE_FOLDER .. "/" .. TIME_FILENAME
-local ASSETS_REPO = "https://raw.githubusercontent.com/Ryu-Dev-here/assetsfora/main/backlua.png"
+local ASSETS_REPO = "https://raw.githubusercontent.com/Ryu-Dev-here/assetsfora/main/"
 local FALLBACK_BG_ID = "rbxassetid://14241601150"
 
 GUI.Config = {
@@ -129,7 +129,7 @@ function GUI.Init(vars)
             startPos = GUI.MainFrame.Position
         end
     end)
-    
+
     UserInputService.InputEnded:Connect(function(input)
      if input.UserInputType == Enum.UserInputType.MouseButton1 then
            dragging = false
@@ -137,16 +137,18 @@ function GUI.Init(vars)
     end)
 
     UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        GUI.MainFrame.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
-end)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            GUI.MainFrame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+
+        
 
 
     -- Background
@@ -231,6 +233,6 @@ end)
     function Logger:Error(m) vars.StateLabel.Text = "❌ " .. m end
     function Logger:Target(m) vars.TargetLabel.Text = m end
     return Logger
-end
+end -- GUI.Init
 
 return GUI
