@@ -117,39 +117,28 @@ function GUI.Init(vars)
     Stroke.Color = GUI.AccentColor
     Stroke.Parent = GUI.MainFrame
 
-    -- Dragging Logic (FIXED)
-    local dragging = false
-    local dragStart
-    local startPos
-
+    -- Dragging Logic
+    local dragging, dragInput, dragStart, startPos
     GUI.MainFrame.InputBegan:Connect(function(input)
-     if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
             dragStart = input.Position
             startPos = GUI.MainFrame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then debugging = false dragging = false end
+            end)
         end
     end)
-
-    UserInputService.InputEnded:Connect(function(input)
-     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-           dragging = false
-        end
+    GUI.MainFrame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
     end)
-
     UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        if input == dragInput and dragging then
             local delta = input.Position - dragStart
-            GUI.MainFrame.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
+            GUI.MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
-
-        
-
 
     -- Background
     GUI.BackgroundImage = Instance.new("ImageLabel")
@@ -158,9 +147,6 @@ function GUI.Init(vars)
     GUI.BackgroundImage.ScaleType = Enum.ScaleType.Crop
     GUI.BackgroundImage.ImageTransparency = 0.5
     GUI.BackgroundImage.Parent = GUI.MainFrame
-    GUI.BackgroundImage.ZIndex = 0
-    GUI.MainFrame.ZIndex = 1
-
     local BgCorner = Instance.new("UICorner")
     BgCorner.CornerRadius = UDim.new(0, 16)
     BgCorner.Parent = GUI.BackgroundImage
@@ -233,6 +219,6 @@ function GUI.Init(vars)
     function Logger:Error(m) vars.StateLabel.Text = "❌ " .. m end
     function Logger:Target(m) vars.TargetLabel.Text = m end
     return Logger
-end -- GUI.Init
+end
 
 return GUI
