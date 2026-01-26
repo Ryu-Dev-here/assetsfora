@@ -230,12 +230,12 @@ function GUI.CreateLoadingScreen()
             task.wait(0.5)
             SmoothTween(LoadingScreen, {BackgroundTransparency = 1}, 0.5)
             for _, child in pairs(LoadingScreen:GetDescendants()) do
-                if child:IsA("GuiObject") then
-                    SmoothTween(child, {
-                        BackgroundTransparency = 1,
-                        TextTransparency = 1,
-                        ImageTransparency = 1
-                    }, 0.5)
+                if child:IsA("TextLabel") or child:IsA("TextButton") then
+                    pcall(function() SmoothTween(child, {TextTransparency = 1, BackgroundTransparency = 1}, 0.5) end)
+                elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
+                    pcall(function() SmoothTween(child, {ImageTransparency = 1, BackgroundTransparency = 1}, 0.5) end)
+                elseif child:IsA("Frame") then
+                    pcall(function() SmoothTween(child, {BackgroundTransparency = 1}, 0.5) end)
                 end
             end
             task.wait(0.6)
