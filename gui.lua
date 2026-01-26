@@ -916,6 +916,11 @@ function GUI.Init(vars)
     end))
 
     print("[SKIBIDI] GUI initialized")
+    
+    -- Auto-load assets after GUI is created
+    task.spawn(function()
+        GUI.InitAssets()
+    end)
 
     -- Logger
     local Logger = {}
