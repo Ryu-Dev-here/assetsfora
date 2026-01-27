@@ -1,3 +1,9 @@
+-- ============================================
+-- PREMIUM SKIBIDI GUI v5.0
+-- Ultra-clean, modern, professional design
+-- Custom SVG icons, smooth animations, dual-panel layout
+-- ============================================
+
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
@@ -15,14 +21,23 @@ GUI.LoadingScreen = nil
 GUI.Connections = {}
 GUI.Tasks = {}
 GUI.RunningTweens = {}
+GUI.SessionStartTime = tick()
 
-GUI.AccentColor = Color3.fromRGB(200, 200, 255)      -- soft white-blue
-GUI.SecondaryColor = Color3.fromRGB(160, 160, 200)   -- muted secondary
-GUI.BackgroundColor = Color3.fromRGB(12, 12, 16)
-GUI.SurfaceColor = Color3.fromRGB(20, 20, 26)
-GUI.TextPrimary = Color3.fromRGB(245, 245, 255)
-GUI.TextSecondary = Color3.fromRGB(170, 170, 185)
-
+-- Modern color palette - Dark theme with electric blue accents
+GUI.Colors = {
+    Background = Color3.fromRGB(11, 14, 20),
+    Surface = Color3.fromRGB(17, 20, 28),
+    SurfaceLight = Color3.fromRGB(24, 28, 38),
+    Primary = Color3.fromRGB(88, 166, 255),
+    PrimaryDark = Color3.fromRGB(58, 136, 255),
+    Success = Color3.fromRGB(52, 211, 153),
+    Warning = Color3.fromRGB(251, 191, 36),
+    Error = Color3.fromRGB(248, 113, 113),
+    Text = Color3.fromRGB(248, 250, 252),
+    TextMuted = Color3.fromRGB(148, 163, 184),
+    Border = Color3.fromRGB(30, 41, 59),
+    Overlay = Color3.fromRGB(0, 0, 0)
+}
 
 -- Configuration
 local WORKSPACE_FOLDER = "cuackerdoing"
@@ -40,10 +55,14 @@ GUI.Config = {
     AntiRagdollEnabled = true,
     FruitAttackEnabled = true,
     MusicEnabled = true,
-    MusicVolume = 0.5
+    MusicVolume = 0.5,
+    FastMode = false
 }
 
--- Helper functions for cleanup
+-- ============================================
+-- HELPER FUNCTIONS
+-- ============================================
+
 function GUI.AddConnection(connection)
     if connection then
         table.insert(GUI.Connections, connection)
@@ -58,27 +77,23 @@ function GUI.AddTask(taskThread)
     return taskThread
 end
 
--- Smooth animations with cleanup tracking
-local function SmoothTween(object, properties, duration, style, direction)
-    if not object or not object.Parent then 
-        return nil
-    end
+-- Premium smooth tweening
+local function Tween(object, properties, duration, style, direction, callback)
+    if not object or not object.Parent then return nil end
     
     local success, tween = pcall(function()
         return TweenService:Create(
             object,
             TweenInfo.new(
-                duration or 0.5, 
-                style or Enum.EasingStyle.Quint, 
+                duration or 0.4,
+                style or Enum.EasingStyle.Quart,
                 direction or Enum.EasingDirection.Out
             ),
             properties
         )
     end)
     
-    if not success or not tween then
-        return nil
-    end
+    if not success or not tween then return nil end
     
     table.insert(GUI.RunningTweens, tween)
     
@@ -87,246 +102,342 @@ local function SmoothTween(object, properties, duration, style, direction)
         if index then
             table.remove(GUI.RunningTweens, index)
         end
+        if callback then callback() end
     end)
     
-    pcall(function()
-        tween:Play()
-    end)
-    
+    pcall(function() tween:Play() end)
     return tween
 end
 
--- Animated particle system
-local function CreateFloatingParticle(parent, color)
-    if not parent or not parent.Parent then
-        return nil
-    end
+-- ============================================
+-- CUSTOM SVG ICON SYSTEM
+-- ============================================
+
+local Icons = {}
+
+function Icons.Create(parent, iconType, size, color)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, size, 0, size)
+    frame.BackgroundTransparency = 1
+    frame.Parent = parent
     
-    local particle = Instance.new("Frame")
-    particle.Size = UDim2.new(0, math.random(3, 6), 0, math.random(3, 6))
-    particle.BackgroundColor3 = color or GUI.AccentColor
-    particle.BorderSizePixel = 0
-    particle.Position = UDim2.new(math.random(), 0, math.random(), 0)
-    particle.BackgroundTransparency = math.random(30, 70) / 100
-    particle.Parent = parent
-    particle.ZIndex = 10
+    local canvas = Instance.new("Frame")
+    canvas.Size = UDim2.new(1, 0, 1, 0)
+    canvas.BackgroundTransparency = 1
+    canvas.Parent = frame
     
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(1, 0)
-    corner.Parent = particle
+    color = color or GUI.Colors.Primary
     
-    local animTask = task.spawn(function()
-        while particle and particle.Parent and parent and parent.Parent do
-            local success = pcall(function()
-                local randomX = math.random()
-                local randomY = math.random()
-                local randomDuration = math.random(40, 80) / 10
-                local randomTransparency = math.random(30, 90) / 100
-                
-                SmoothTween(particle, {
-                    Position = UDim2.new(randomX, 0, randomY, 0),
-                    BackgroundTransparency = randomTransparency
-                }, randomDuration, Enum.EasingStyle.Sine)
-            end)
+    if iconType == "target" then
+        -- Crosshair icon
+        local h = Instance.new("Frame")
+        h.Size = UDim2.new(0.7, 0, 0, 2)
+        h.Position = UDim2.new(0.15, 0, 0.5, -1)
+        h.BackgroundColor3 = color
+        h.BorderSizePixel = 0
+        h.Parent = canvas
+        
+        local v = Instance.new("Frame")
+        v.Size = UDim2.new(0, 2, 0.7, 0)
+        v.Position = UDim2.new(0.5, -1, 0.15, 0)
+        v.BackgroundColor3 = color
+        v.BorderSizePixel = 0
+        v.Parent = canvas
+        
+        local circle = Instance.new("Frame")
+        circle.Size = UDim2.new(0.5, 0, 0.5, 0)
+        circle.Position = UDim2.new(0.25, 0, 0.25, 0)
+        circle.BackgroundColor3 = color
+        circle.BackgroundTransparency = 0.7
+        circle.BorderSizePixel = 0
+        circle.Parent = canvas
+        
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(1, 0)
+        corner.Parent = circle
+        
+    elseif iconType == "status" then
+        -- Activity pulse icon
+        for i = 1, 3 do
+            local bar = Instance.new("Frame")
+            bar.Size = UDim2.new(0, 3, 0.3 + (i * 0.15), 0)
+            bar.Position = UDim2.new(0.2 + (i * 0.2), 0, 0.5, 0)
+            bar.AnchorPoint = Vector2.new(0, 0.5)
+            bar.BackgroundColor3 = color
+            bar.BorderSizePixel = 0
+            bar.Parent = canvas
             
-            if not success then
-                break
-            end
-            
-            task.wait(math.random(30, 80) / 10)
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 2)
+            corner.Parent = bar
         end
         
-        if particle and particle.Parent then
-            particle:Destroy()
-        end
-    end)
+    elseif iconType == "bounty" then
+        -- Diamond icon
+        local top = Instance.new("Frame")
+        top.Size = UDim2.new(0.6, 0, 0.3, 0)
+        top.Position = UDim2.new(0.2, 0, 0.15, 0)
+        top.BackgroundColor3 = color
+        top.BorderSizePixel = 0
+        top.Parent = canvas
+        top.Rotation = 45
+        
+        local bottom = Instance.new("Frame")
+        bottom.Size = UDim2.new(0.6, 0, 0.4, 0)
+        bottom.Position = UDim2.new(0.2, 0, 0.45, 0)
+        bottom.BackgroundColor3 = color
+        bottom.BorderSizePixel = 0
+        bottom.Parent = canvas
+        bottom.Rotation = 45
+        
+    elseif iconType == "time" then
+        -- Clock icon
+        local circle = Instance.new("Frame")
+        circle.Size = UDim2.new(0.8, 0, 0.8, 0)
+        circle.Position = UDim2.new(0.1, 0, 0.1, 0)
+        circle.BackgroundColor3 = color
+        circle.BackgroundTransparency = 0.7
+        circle.BorderSizePixel = 0
+        circle.Parent = canvas
+        
+        local circleCorner = Instance.new("UICorner")
+        circleCorner.CornerRadius = UDim.new(1, 0)
+        circleCorner.Parent = circle
+        
+        local hourHand = Instance.new("Frame")
+        hourHand.Size = UDim2.new(0, 2, 0.3, 0)
+        hourHand.Position = UDim2.new(0.5, -1, 0.5, 0)
+        hourHand.AnchorPoint = Vector2.new(0.5, 1)
+        hourHand.BackgroundColor3 = color
+        hourHand.BorderSizePixel = 0
+        hourHand.Parent = canvas
+        
+        local corner1 = Instance.new("UICorner")
+        corner1.CornerRadius = UDim.new(1, 0)
+        corner1.Parent = hourHand
+        
+        local minuteHand = Instance.new("Frame")
+        minuteHand.Size = UDim2.new(0, 2, 0.35, 0)
+        minuteHand.Position = UDim2.new(0.5, -1, 0.5, 0)
+        minuteHand.AnchorPoint = Vector2.new(0.5, 1)
+        minuteHand.BackgroundColor3 = color
+        minuteHand.BorderSizePixel = 0
+        minuteHand.Rotation = 90
+        minuteHand.Parent = canvas
+        
+        local corner2 = Instance.new("UICorner")
+        corner2.CornerRadius = UDim.new(1, 0)
+        corner2.Parent = minuteHand
+        
+    elseif iconType == "skull" then
+        -- Skull icon (for eliminations)
+        local head = Instance.new("Frame")
+        head.Size = UDim2.new(0.6, 0, 0.5, 0)
+        head.Position = UDim2.new(0.2, 0, 0.15, 0)
+        head.BackgroundColor3 = color
+        head.BorderSizePixel = 0
+        head.Parent = canvas
+        
+        local headCorner = Instance.new("UICorner")
+        headCorner.CornerRadius = UDim.new(0.3, 0)
+        headCorner.Parent = head
+        
+        local jaw = Instance.new("Frame")
+        jaw.Size = UDim2.new(0.45, 0, 0.25, 0)
+        jaw.Position = UDim2.new(0.275, 0, 0.6, 0)
+        jaw.BackgroundColor3 = color
+        jaw.BorderSizePixel = 0
+        jaw.Parent = canvas
+        
+        local jawCorner = Instance.new("UICorner")
+        jawCorner.CornerRadius = UDim.new(0, 4)
+        jawCorner.Parent = jaw
+        
+    elseif iconType == "zap" then
+        -- Lightning bolt (for fast mode)
+        local bolt = Instance.new("Frame")
+        bolt.Size = UDim2.new(0.5, 0, 0.7, 0)
+        bolt.Position = UDim2.new(0.25, 0, 0.15, 0)
+        bolt.BackgroundColor3 = color
+        bolt.BorderSizePixel = 0
+        bolt.Rotation = 15
+        bolt.Parent = canvas
+        
+        local cutout = Instance.new("Frame")
+        cutout.Size = UDim2.new(0.6, 0, 0.3, 0)
+        cutout.Position = UDim2.new(0.4, 0, 0.35, 0)
+        cutout.BackgroundColor3 = GUI.Colors.Background
+        cutout.BorderSizePixel = 0
+        cutout.Parent = canvas
+    end
     
-    GUI.AddTask(animTask)
-    
-    return particle
+    return frame
 end
 
+-- ============================================
+-- MUSIC STATE MANAGEMENT
+-- ============================================
+
 function GUI.SaveMusicState()
-    if not GUI.MusicSound then 
-        return 
-    end
+    if not GUI.MusicSound then return end
     
     pcall(function()
         if GUI.MusicSound.IsPlaying and writefile then
             local timePos = GUI.MusicSound.TimePosition
             if timePos and type(timePos) == "number" and timePos > 0 then
                 writefile(TIME_PATH, tostring(timePos))
-                print("[SKIBIDI] Music state saved: " .. timePos)
             end
         end
     end)
 end
 
+-- ============================================
+-- PREMIUM LOADING SCREEN
+-- ============================================
+
 function GUI.CreateFullScreenLoader()
     local LoaderScreen = Instance.new("Frame")
     LoaderScreen.Name = "FullScreenLoader"
     LoaderScreen.Size = UDim2.new(1, 0, 1, 0)
-    LoaderScreen.BackgroundColor3 = Color3.fromRGB(10, 10, 18)
+    LoaderScreen.BackgroundColor3 = GUI.Colors.Background
     LoaderScreen.BorderSizePixel = 0
-    LoaderScreen.ZIndex = 1000
+    LoaderScreen.ZIndex = 10000
     LoaderScreen.Parent = GUI.SkibidiGui
     
-    -- Animated gradient background
-    local Gradient = Instance.new("UIGradient")
-    Gradient.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 15, 25)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(25, 15, 35)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 15, 25))
-    }
-    Gradient.Rotation = 45
-    Gradient.Parent = LoaderScreen
+    -- Background image
     local Bg = Instance.new("ImageLabel")
-    Bg.Size = UDim2.new(1,0,1,0)
+    Bg.Size = UDim2.new(1, 0, 1, 0)
     Bg.BackgroundTransparency = 1
-    Bg.ImageTransparency = 0
+    Bg.ImageTransparency = 1
     Bg.ScaleType = Enum.ScaleType.Crop
-    Bg.ZIndex = 0
+    Bg.ZIndex = 10001
     Bg.Parent = LoaderScreen
-GUI.AddTask(task.spawn(function()
-    local asset = getcustomasset or getsynasset
-    if asset and isfile and writefile then
-        local path = WORKSPACE_FOLDER.."/loading.png"
-        if not isfile(path) then
-            writefile(path, game:HttpGet(ASSETS_REPO.."loading.png", true))
-        end
-        Bg.Image = asset(path)
-    end
-end))
-
-local Dark = Instance.new("Frame")
-Dark.Size = UDim2.new(1,0,1,0)
-Dark.BackgroundColor3 = Color3.fromRGB(0,0,0)
-Dark.BackgroundTransparency = 0.45
-Dark.ZIndex = 1
-Dark.Parent = LoaderScreen
-    -- Rotate gradient continuously
+    
     GUI.AddTask(task.spawn(function()
-        while LoaderScreen and LoaderScreen.Parent and Gradient and Gradient.Parent do
-            SmoothTween(Gradient, {Rotation = Gradient.Rotation + 360}, 10, Enum.EasingStyle.Linear)
-            task.wait(10)
+        local asset = getcustomasset or getsynasset
+        if asset and isfile and writefile then
+            local path = WORKSPACE_FOLDER.."/loading.png"
+            if not isfile(path) then
+                writefile(path, game:HttpGet(ASSETS_REPO.."loading.png", true))
+            end
+            Bg.Image = asset(path)
+            Tween(Bg, {ImageTransparency = 0.1}, 1.2, Enum.EasingStyle.Sine)
         end
     end))
     
-    -- Particles for ambiance
-    for i = 1, 30 do
-        CreateFloatingParticle(LoaderScreen, i % 2 == 0 and GUI.AccentColor or GUI.SecondaryColor)
-    end
+    -- Dark overlay
+    local Overlay = Instance.new("Frame")
+    Overlay.Size = UDim2.new(1, 0, 1, 0)
+    Overlay.BackgroundColor3 = GUI.Colors.Overlay
+    Overlay.BackgroundTransparency = 0.3
+    Overlay.BorderSizePixel = 0
+    Overlay.ZIndex = 10002
+    Overlay.Parent = LoaderScreen
     
     -- Center container
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0, 500, 0, 350)
-    Container.Position = UDim2.new(0.5, -250, 0.5, -175)
+    Container.Size = UDim2.new(0, 600, 0, 400)
+    Container.Position = UDim2.new(0.5, -300, 0.5, -200)
     Container.BackgroundTransparency = 1
+    Container.ZIndex = 10003
     Container.Parent = LoaderScreen
     
-    -- Animated logo text
+    -- Logo
     local LogoText = Instance.new("TextLabel")
     LogoText.Text = "SKIBIDI"
-    LogoText.Size = UDim2.new(1, 0, 0, 100)
+    LogoText.Size = UDim2.new(1, 0, 0, 80)
     LogoText.BackgroundTransparency = 1
-    LogoText.Font = Enum.Font.GothamBlack
-    LogoText.TextColor3 = GUI.TextPrimary
-    LogoText.TextSize = 72
+    LogoText.Font = Enum.Font.GothamBold
+    LogoText.TextColor3 = GUI.Colors.Text
+    LogoText.TextSize = 64
     LogoText.TextTransparency = 1
+    LogoText.ZIndex = 10004
     LogoText.Parent = Container
-    
-    -- Gradient on logo
-    local LogoGradient = Instance.new("UIGradient")
-    LogoGradient.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, GUI.AccentColor),
-        ColorSequenceKeypoint.new(0.5, GUI.SecondaryColor),
-        ColorSequenceKeypoint.new(1, GUI.AccentColor)
-    }
-    LogoGradient.Rotation = 45
-    LogoGradient.Parent = LogoText
     
     -- Subtitle
     local Subtitle = Instance.new("TextLabel")
-    Subtitle.Text = "AUTO FARM SYSTEM"
-    Subtitle.Size = UDim2.new(1, 0, 0, 35)
-    Subtitle.Position = UDim2.new(0, 0, 0, 100)
+    Subtitle.Text = "ADVANCED AUTOMATION SYSTEM"
+    Subtitle.Size = UDim2.new(1, 0, 0, 30)
+    Subtitle.Position = UDim2.new(0, 0, 0, 85)
     Subtitle.BackgroundTransparency = 1
     Subtitle.Font = Enum.Font.GothamMedium
-    Subtitle.TextColor3 = GUI.TextSecondary
-    Subtitle.TextSize = 18
+    Subtitle.TextColor3 = GUI.Colors.TextMuted
+    Subtitle.TextSize = 16
     Subtitle.TextTransparency = 1
+    Subtitle.ZIndex = 10004
     Subtitle.Parent = Container
     
-    -- Loading bar container
-    local BarContainer = Instance.new("Frame")
-    BarContainer.Size = UDim2.new(0.85, 0, 0, 8)
-    BarContainer.Position = UDim2.new(0.075, 0, 0, 180)
-    BarContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-    BarContainer.BorderSizePixel = 0
-    BarContainer.BackgroundTransparency = 1
-    BarContainer.Parent = Container
+    -- Progress container
+    local ProgressContainer = Instance.new("Frame")
+    ProgressContainer.Size = UDim2.new(1, 0, 0, 6)
+    ProgressContainer.Position = UDim2.new(0, 0, 0, 180)
+    ProgressContainer.BackgroundColor3 = GUI.Colors.Surface
+    ProgressContainer.BorderSizePixel = 0
+    ProgressContainer.BackgroundTransparency = 1
+    ProgressContainer.ZIndex = 10004
+    ProgressContainer.Parent = Container
     
-    local BarCorner = Instance.new("UICorner")
-    BarCorner.CornerRadius = UDim.new(1, 0)
-    BarCorner.Parent = BarContainer
+    local ProgressCorner = Instance.new("UICorner")
+    ProgressCorner.CornerRadius = UDim.new(1, 0)
+    ProgressCorner.Parent = ProgressContainer
     
     -- Progress bar
     local ProgressBar = Instance.new("Frame")
     ProgressBar.Size = UDim2.new(0, 0, 1, 0)
-    ProgressBar.BackgroundColor3 = GUI.AccentColor
+    ProgressBar.BackgroundColor3 = GUI.Colors.Primary
     ProgressBar.BorderSizePixel = 0
-    ProgressBar.Parent = BarContainer
+    ProgressBar.ZIndex = 10005
+    ProgressBar.Parent = ProgressContainer
     
-    local ProgressCorner = Instance.new("UICorner")
-    ProgressCorner.CornerRadius = UDim.new(1, 0)
-    ProgressCorner.Parent = ProgressBar
+    local BarCorner = Instance.new("UICorner")
+    BarCorner.CornerRadius = UDim.new(1, 0)
+    BarCorner.Parent = ProgressBar
     
-    -- Bar glow
-    local BarGlow = Instance.new("Frame")
-    BarGlow.Size = UDim2.new(1, 20, 1, 20)
-    BarGlow.Position = UDim2.new(0, -10, 0, -10)
-    BarGlow.BackgroundColor3 = GUI.AccentColor
-    BarGlow.BackgroundTransparency = 0.7
-    BarGlow.BorderSizePixel = 0
-    BarGlow.ZIndex = 0
-    BarGlow.Parent = ProgressBar
+    -- Glow effect
+    local Glow = Instance.new("ImageLabel")
+    Glow.Size = UDim2.new(1, 40, 1, 40)
+    Glow.Position = UDim2.new(0, -20, 0, -20)
+    Glow.BackgroundTransparency = 1
+    Glow.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+    Glow.ImageColor3 = GUI.Colors.Primary
+    Glow.ImageTransparency = 0.5
+    Glow.ZIndex = 10004
+    Glow.Parent = ProgressBar
     
-    local GlowCorner = Instance.new("UICorner")
-    GlowCorner.CornerRadius = UDim.new(1, 0)
-    GlowCorner.Parent = BarGlow
-    
-    -- Loading status text
+    -- Status text
     local StatusText = Instance.new("TextLabel")
-    StatusText.Text = "Initializing..."
-    StatusText.Size = UDim2.new(1, 0, 0, 30)
+    StatusText.Text = "Initializing system..."
+    StatusText.Size = UDim2.new(1, 0, 0, 25)
     StatusText.Position = UDim2.new(0, 0, 0, 210)
     StatusText.BackgroundTransparency = 1
-    StatusText.Font = Enum.Font.GothamMedium
-    StatusText.TextColor3 = GUI.TextSecondary
-    StatusText.TextSize = 16
+    StatusText.Font = Enum.Font.Gotham
+    StatusText.TextColor3 = GUI.Colors.TextMuted
+    StatusText.TextSize = 15
     StatusText.TextTransparency = 1
+    StatusText.ZIndex = 10004
     StatusText.Parent = Container
     
-    -- Percentage text
+    -- Percentage
     local PercentText = Instance.new("TextLabel")
     PercentText.Text = "0%"
-    PercentText.Size = UDim2.new(1, 0, 0, 40)
+    PercentText.Size = UDim2.new(1, 0, 0, 50)
     PercentText.Position = UDim2.new(0, 0, 0, 250)
     PercentText.BackgroundTransparency = 1
     PercentText.Font = Enum.Font.GothamBold
-    PercentText.TextColor3 = GUI.TextPrimary
-    PercentText.TextSize = 32
+    PercentText.TextColor3 = GUI.Colors.Primary
+    PercentText.TextSize = 36
     PercentText.TextTransparency = 1
+    PercentText.ZIndex = 10004
     PercentText.Parent = Container
     
-    -- Fade in animations
-    SmoothTween(LogoText, {TextTransparency = 0}, 0.8)
-    task.wait(0.2)
-    SmoothTween(Subtitle, {TextTransparency = 0}, 0.8)
-    task.wait(0.2)
-    SmoothTween(BarContainer, {BackgroundTransparency = 0.6}, 0.8)
-    SmoothTween(StatusText, {TextTransparency = 0}, 0.8)
-    SmoothTween(PercentText, {TextTransparency = 0}, 0.8)
+    -- Fade in
+    Tween(LogoText, {TextTransparency = 0}, 0.8)
+    task.wait(0.15)
+    Tween(Subtitle, {TextTransparency = 0}, 0.8)
+    task.wait(0.15)
+    Tween(ProgressContainer, {BackgroundTransparency = 0.6}, 0.8)
+    Tween(StatusText, {TextTransparency = 0}, 0.8)
+    Tween(PercentText, {TextTransparency = 0}, 0.8)
     
     GUI.LoadingScreen = LoaderScreen
     
@@ -343,42 +454,38 @@ Dark.Parent = LoaderScreen
                 PercentText.Text = math.floor(progress * 100) .. "%"
             end
             if ProgressBar and ProgressBar.Parent then
-                SmoothTween(ProgressBar, {
-                    Size = UDim2.new(progress, 0, 1, 0)
-                }, 0.4, Enum.EasingStyle.Quad)
+                Tween(ProgressBar, {Size = UDim2.new(progress, 0, 1, 0)}, 0.3)
             end
         end,
         Complete = function()
-            if not LoaderScreen or not LoaderScreen.Parent then
-                return
-            end
+            if not LoaderScreen or not LoaderScreen.Parent then return end
             
             if StatusText and StatusText.Parent then
-                StatusText.Text = "Complete!"
+                StatusText.Text = "Launch ready"
             end
             if PercentText and PercentText.Parent then
                 PercentText.Text = "100%"
             end
             
-            task.wait(0.6)
+            task.wait(0.5)
             
-            pcall(function()
-                SmoothTween(LoaderScreen, {BackgroundTransparency = 1}, 0.5)
-                
-                for _, child in pairs(LoaderScreen:GetDescendants()) do
+            Tween(LoaderScreen, {BackgroundTransparency = 1}, 0.6)
+            
+            for _, child in pairs(LoaderScreen:GetDescendants()) do
+                if child:IsA("TextLabel") or child:IsA("Frame") or child:IsA("ImageLabel") then
                     pcall(function()
-                        if child:IsA("TextLabel") or child:IsA("TextButton") then
-                            SmoothTween(child, {TextTransparency = 1, BackgroundTransparency = 1}, 0.5)
-                        elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
-                            SmoothTween(child, {ImageTransparency = 1, BackgroundTransparency = 1}, 0.5)
-                        elseif child:IsA("Frame") then
-                            SmoothTween(child, {BackgroundTransparency = 1}, 0.5)
+                        if child.TextTransparency then
+                            Tween(child, {TextTransparency = 1, BackgroundTransparency = 1}, 0.6)
+                        elseif child.ImageTransparency then
+                            Tween(child, {ImageTransparency = 1, BackgroundTransparency = 1}, 0.6)
+                        else
+                            Tween(child, {BackgroundTransparency = 1}, 0.6)
                         end
                     end)
                 end
-            end)
+            end
             
-            task.wait(0.6)
+            task.wait(0.7)
             
             if LoaderScreen and LoaderScreen.Parent then
                 LoaderScreen:Destroy()
@@ -389,29 +496,25 @@ Dark.Parent = LoaderScreen
     }
 end
 
-function GUI.InitAssets(progressCallback)
-    print("[SKIBIDI] Initializing assets...")
-    
+-- ============================================
+-- ASSET INITIALIZATION
+-- ============================================
+
+function GUI.InitAssets()
     local loader = GUI.CreateFullScreenLoader()
-    if not loader then
-        warn("[SKIBIDI] Failed to create loader")
-        return
-    end
+    if not loader then return end
     
     loader.Update(0.05, "Creating workspace...")
     
-    -- Create workspace
     pcall(function()
-        if makefolder and not isfolder(WORKSPACE_FOLDER) then 
-            makefolder(WORKSPACE_FOLDER) 
-            print("[SKIBIDI] Workspace created")
+        if makefolder and not isfolder(WORKSPACE_FOLDER) then
+            makefolder(WORKSPACE_FOLDER)
         end
     end)
     
     task.wait(0.3)
     loader.Update(0.15, "Initializing audio system...")
-
-    -- Initialize music
+    
     local musicSuccess = pcall(function()
         GUI.MusicSound = Instance.new("Sound")
         GUI.MusicSound.Name = "SkibidiMusic"
@@ -420,26 +523,19 @@ function GUI.InitAssets(progressCallback)
         GUI.MusicSound.Parent = SoundService
     end)
     
-    if not musicSuccess then
-        warn("[SKIBIDI] Music initialization failed")
-    end
-
     task.wait(0.2)
     loader.Update(0.25, "Loading audio files...")
-
-    -- Load music asynchronously
+    
     GUI.AddTask(task.spawn(function()
         task.wait(0.1)
         
-        local success, err = pcall(function()
+        pcall(function()
             local asset = getcustomasset or getsynasset
-            if not asset then 
-                warn("[SKIBIDI] Asset loader unavailable")
+            if not asset then
                 loader.Update(0.5, "Audio system unavailable")
-                return 
+                return
             end
             
-            -- Download if needed
             if isfile and not isfile(MUSIC_PATH) then
                 if writefile then
                     loader.Update(0.35, "Downloading audio...")
@@ -449,48 +545,31 @@ function GUI.InitAssets(progressCallback)
                     
                     if httpSuccess and musicData then
                         writefile(MUSIC_PATH, musicData)
-                        print("[SKIBIDI] Audio downloaded")
-                    else
-                        warn("[SKIBIDI] Audio download failed")
-                        loader.Update(0.5, "Audio download failed")
-                        return
                     end
                 end
             end
             
-            -- Load music
             if isfile and isfile(MUSIC_PATH) and GUI.MusicSound then
                 local assetUrl = asset(MUSIC_PATH)
                 GUI.MusicSound.SoundId = assetUrl
                 
-                -- Restore position
                 if isfile(TIME_PATH) and readfile then
                     local savedTimeStr = readfile(TIME_PATH)
                     local savedTime = tonumber(savedTimeStr)
-                    if savedTime and savedTime > 0 then 
+                    if savedTime and savedTime > 0 then
                         GUI.MusicSound.TimePosition = savedTime
-                        print("[SKIBIDI] Audio position restored: " .. savedTime)
                     end
                 end
                 
                 GUI.MusicSound:Play()
-                print("[SKIBIDI] Audio loaded successfully")
                 loader.Update(0.5, "Audio system ready")
-            else
-                loader.Update(0.5, "Audio file not found")
             end
         end)
-        
-        if not success then
-            warn("[SKIBIDI] Audio load error:", err)
-            loader.Update(0.5, "Audio system error")
-        end
     end))
-
+    
     task.wait(0.4)
     loader.Update(0.6, "Preparing interface...")
-
-    -- Wait for BackgroundImage
+    
     local maxWait = 100
     local waited = 0
     while not GUI.BackgroundImage and waited < maxWait do
@@ -498,23 +577,17 @@ function GUI.InitAssets(progressCallback)
         waited = waited + 1
     end
     
-    if not GUI.BackgroundImage then
-        warn("[SKIBIDI] Background element not found")
-        loader.Update(0.8, "Background unavailable")
-    else
+    if GUI.BackgroundImage then
         loader.Update(0.65, "Loading background...")
         
-        -- Load background
         GUI.AddTask(task.spawn(function()
-            local success, err = pcall(function()
+            pcall(function()
                 local asset = getcustomasset or getsynasset
-                if not asset then 
-                    warn("[SKIBIDI] Asset loader unavailable for background")
+                if not asset then
                     loader.Update(0.8, "Background unavailable")
-                    return 
+                    return
                 end
                 
-                -- Download if needed
                 if isfile and not isfile(BG_PATH) then
                     if writefile then
                         loader.Update(0.7, "Downloading background...")
@@ -524,30 +597,16 @@ function GUI.InitAssets(progressCallback)
                         
                         if httpSuccess and bgData then
                             writefile(BG_PATH, bgData)
-                            print("[SKIBIDI] Background downloaded")
-                        else
-                            warn("[SKIBIDI] Background download failed")
-                            loader.Update(0.8, "Background download failed")
-                            return
                         end
                     end
                 end
                 
-                -- Load background
                 if isfile and isfile(BG_PATH) and GUI.BackgroundImage and GUI.BackgroundImage.Parent then
                     local assetUrl = asset(BG_PATH)
                     GUI.BackgroundImage.Image = assetUrl
-                    print("[SKIBIDI] Background loaded")
                     loader.Update(0.8, "Background ready")
-                else
-                    loader.Update(0.8, "Background not available")
                 end
             end)
-            
-            if not success then
-                warn("[SKIBIDI] Background error:", err)
-                loader.Update(0.8, "Background error")
-            end
         end))
     end
     
@@ -558,32 +617,27 @@ function GUI.InitAssets(progressCallback)
     task.wait(0.5)
     loader.Complete()
     
-    -- Save music on teleport
     local teleportConnection = Players.LocalPlayer.OnTeleport:Connect(function()
         GUI.SaveMusicState()
     end)
     GUI.AddConnection(teleportConnection)
-    
-    print("[SKIBIDI] Assets initialized")
 end
 
+-- ============================================
+-- MAIN GUI INITIALIZATION
+-- ============================================
+
 function GUI.Init(vars)
-    -- Cleanup existing
-    if GUI.SkibidiGui then 
+    if GUI.SkibidiGui then
         GUI.Cleanup()
     end
     
-    -- Validate vars
     if not vars or type(vars) ~= "table" then
-        warn("[SKIBIDI] Invalid vars, creating new table")
         vars = {}
     end
     
     local lp = Players.LocalPlayer
-    if not lp then
-        warn("[SKIBIDI] LocalPlayer not found")
-        return nil
-    end
+    if not lp then return nil end
     
     -- Create ScreenGui
     GUI.SkibidiGui = Instance.new("ScreenGui")
@@ -592,122 +646,316 @@ function GUI.Init(vars)
     GUI.SkibidiGui.IgnoreGuiInset = true
     GUI.SkibidiGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     
-    local guiParented = pcall(function() 
-        GUI.SkibidiGui.Parent = CoreGui 
+    local guiParented = pcall(function()
+        GUI.SkibidiGui.Parent = CoreGui
     end)
     
-    if not guiParented or not GUI.SkibidiGui.Parent then 
+    if not guiParented or not GUI.SkibidiGui.Parent then
         local playerGui = lp:WaitForChild("PlayerGui", 5)
         if playerGui then
             GUI.SkibidiGui.Parent = playerGui
         else
-            warn("[SKIBIDI] Failed to parent GUI")
             return nil
         end
     end
-
-    -- Main Frame
+    
+    -- Main container (dual panel design)
     GUI.MainFrame = Instance.new("Frame")
     GUI.MainFrame.Name = "MainFrame"
-    GUI.MainFrame.BackgroundColor3 = GUI.BackgroundColor
-    GUI.MainFrame.BackgroundTransparency = 0.05
-    GUI.MainFrame.Position = UDim2.new(0.5, -200, 0.5, -280)
+    GUI.MainFrame.BackgroundColor3 = GUI.Colors.Background
+    GUI.MainFrame.Position = UDim2.new(0.5, -450, 0.5, -300)
     GUI.MainFrame.Size = UDim2.new(0, 0, 0, 0)
     GUI.MainFrame.BorderSizePixel = 0
     GUI.MainFrame.ClipsDescendants = true
     GUI.MainFrame.Parent = GUI.SkibidiGui
     
-    local Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0, 16)
-    Corner.Parent = GUI.MainFrame
+    local MainCorner = Instance.new("UICorner")
+    MainCorner.CornerRadius = UDim.new(0, 20)
+    MainCorner.Parent = GUI.MainFrame
     
-    -- Animated border
-    local Stroke = Instance.new("UIStroke")
-    Stroke.Thickness = 2
-    Stroke.Transparency = 0.2
-    Stroke.Parent = GUI.MainFrame
+    local MainStroke = Instance.new("UIStroke")
+    MainStroke.Color = GUI.Colors.Border
+    MainStroke.Thickness = 1
+    MainStroke.Transparency = 0.5
+    MainStroke.Parent = GUI.MainFrame
     
-    local StrokeGradient = Instance.new("UIGradient")
-    StrokeGradient.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, GUI.AccentColor),
-        ColorSequenceKeypoint.new(0.5, GUI.SecondaryColor),
-        ColorSequenceKeypoint.new(1, GUI.AccentColor)
-    }
-    StrokeGradient.Rotation = 0
-    StrokeGradient.Parent = Stroke
+    -- LEFT PANEL - Image Panel
+    local LeftPanel = Instance.new("Frame")
+    LeftPanel.Name = "LeftPanel"
+    LeftPanel.Size = UDim2.new(0, 400, 1, 0)
+    LeftPanel.BackgroundTransparency = 1
+    LeftPanel.BorderSizePixel = 0
+    LeftPanel.ClipsDescendants = true
+    LeftPanel.Parent = GUI.MainFrame
     
-    -- Animate border
-    GUI.AddTask(task.spawn(function()
-        while Stroke and Stroke.Parent and StrokeGradient and StrokeGradient.Parent do
-            SmoothTween(StrokeGradient, {Rotation = StrokeGradient.Rotation + 360}, 5, Enum.EasingStyle.Linear)
-            task.wait(5)
-        end
-    end))
-    
-    -- Glass effect overlay
-    local GlassOverlay = Instance.new("Frame")
-    GlassOverlay.Size = UDim2.new(1, 0, 1, 0)
-    GlassOverlay.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    GlassOverlay.BackgroundTransparency = 0.97
-    GlassOverlay.BorderSizePixel = 0
-    GlassOverlay.Parent = GUI.MainFrame
-    
-    local GlassCorner = Instance.new("UICorner")
-    GlassCorner.CornerRadius = UDim.new(0, 16)
-    GlassCorner.Parent = GlassOverlay
-
-    -- Background Image Layer
+    -- Background Image
     GUI.BackgroundImage = Instance.new("ImageLabel")
     GUI.BackgroundImage.Size = UDim2.new(1, 0, 1, 0)
     GUI.BackgroundImage.BackgroundTransparency = 1
     GUI.BackgroundImage.ScaleType = Enum.ScaleType.Crop
-    GUI.BackgroundImage.ImageTransparency = 0.65
-    GUI.BackgroundImage.ZIndex = 0
-    GUI.BackgroundImage.Parent = GUI.MainFrame
+    GUI.BackgroundImage.ImageTransparency = 0.15
+    GUI.BackgroundImage.ZIndex = 1
+    GUI.BackgroundImage.Parent = LeftPanel
     
     local BgCorner = Instance.new("UICorner")
-    BgCorner.CornerRadius = UDim.new(0, 16)
+    BgCorner.CornerRadius = UDim.new(0, 20)
     BgCorner.Parent = GUI.BackgroundImage
     
-    -- Dark overlay on background
-    local DarkOverlay = Instance.new("Frame")
-    DarkOverlay.Size = UDim2.new(1, 0, 1, 0)
-    DarkOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    DarkOverlay.BackgroundTransparency = 0.4
-    DarkOverlay.BorderSizePixel = 0
-    DarkOverlay.ZIndex = 1
-    DarkOverlay.Parent = GUI.MainFrame
+    -- Dark gradient overlay on image
+    local ImageOverlay = Instance.new("Frame")
+    ImageOverlay.Size = UDim2.new(1, 0, 1, 0)
+    ImageOverlay.BackgroundColor3 = GUI.Colors.Overlay
+    ImageOverlay.BackgroundTransparency = 0.4
+    ImageOverlay.BorderSizePixel = 0
+    ImageOverlay.ZIndex = 2
+    ImageOverlay.Parent = LeftPanel
     
-    local DarkCorner = Instance.new("UICorner")
-    DarkCorner.CornerRadius = UDim.new(0, 16)
-    DarkCorner.Parent = DarkOverlay
+    local OverlayCorner = Instance.new("UICorner")
+    OverlayCorner.CornerRadius = UDim.new(0, 20)
+    OverlayCorner.Parent = ImageOverlay
     
-    -- Floating particles
-    for i = 1, 15 do
-        CreateFloatingParticle(GUI.MainFrame, i % 2 == 0 and GUI.AccentColor or GUI.SecondaryColor)
+    local OverlayGradient = Instance.new("UIGradient")
+    OverlayGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(11, 14, 20))
+    }
+    OverlayGradient.Rotation = 90
+    OverlayGradient.Parent = ImageOverlay
+    
+    -- Logo on left panel
+    local LeftLogo = Instance.new("TextLabel")
+    LeftLogo.Text = "SKIBIDI"
+    LeftLogo.Size = UDim2.new(1, -40, 0, 60)
+    LeftLogo.Position = UDim2.new(0, 20, 1, -80)
+    LeftLogo.BackgroundTransparency = 1
+    LeftLogo.Font = Enum.Font.GothamBold
+    LeftLogo.TextColor3 = GUI.Colors.Text
+    LeftLogo.TextSize = 42
+    LeftLogo.TextXAlignment = Enum.TextXAlignment.Left
+    LeftLogo.ZIndex = 3
+    LeftLogo.Parent = LeftPanel
+    
+    -- Version badge
+    local VersionBadge = Instance.new("Frame")
+    VersionBadge.Size = UDim2.new(0, 65, 0, 28)
+    VersionBadge.Position = UDim2.new(0, 20, 0, 20)
+    VersionBadge.BackgroundColor3 = GUI.Colors.Primary
+    VersionBadge.BackgroundTransparency = 0.1
+    VersionBadge.BorderSizePixel = 0
+    VersionBadge.ZIndex = 3
+    VersionBadge.Parent = LeftPanel
+    
+    local BadgeCorner = Instance.new("UICorner")
+    BadgeCorner.CornerRadius = UDim.new(0, 6)
+    BadgeCorner.Parent = VersionBadge
+    
+    local BadgeText = Instance.new("TextLabel")
+    BadgeText.Text = "v5.0"
+    BadgeText.Size = UDim2.new(1, 0, 1, 0)
+    BadgeText.BackgroundTransparency = 1
+    BadgeText.Font = Enum.Font.GothamBold
+    BadgeText.TextColor3 = GUI.Colors.Text
+    BadgeText.TextSize = 13
+    BadgeText.ZIndex = 4
+    BadgeText.Parent = VersionBadge
+    
+    -- RIGHT PANEL - Stats Panel
+    local RightPanel = Instance.new("Frame")
+    RightPanel.Name = "RightPanel"
+    RightPanel.Size = UDim2.new(0, 500, 1, 0)
+    RightPanel.Position = UDim2.new(0, 400, 0, 0)
+    RightPanel.BackgroundColor3 = GUI.Colors.Surface
+    RightPanel.BorderSizePixel = 0
+    RightPanel.Parent = GUI.MainFrame
+    
+    local RightCorner = Instance.new("UICorner")
+    RightCorner.CornerRadius = UDim.new(0, 20)
+    RightCorner.Parent = RightPanel
+    
+    -- Header in right panel
+    local Header = Instance.new("Frame")
+    Header.Size = UDim2.new(1, 0, 0, 80)
+    Header.BackgroundTransparency = 1
+    Header.Parent = RightPanel
+    
+    local HeaderTitle = Instance.new("TextLabel")
+    HeaderTitle.Text = "AUTOMATION PANEL"
+    HeaderTitle.Size = UDim2.new(1, -60, 0, 35)
+    HeaderTitle.Position = UDim2.new(0, 30, 0, 22)
+    HeaderTitle.BackgroundTransparency = 1
+    HeaderTitle.Font = Enum.Font.GothamBold
+    HeaderTitle.TextColor3 = GUI.Colors.Text
+    HeaderTitle.TextSize = 22
+    HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+    HeaderTitle.Parent = Header
+    
+    -- Fast mode toggle button
+    local FastModeBtn = Instance.new("TextButton")
+    FastModeBtn.Name = "FastModeBtn"
+    FastModeBtn.Size = UDim2.new(0, 120, 0, 40)
+    FastModeBtn.Position = UDim2.new(1, -150, 0, 20)
+    FastModeBtn.BackgroundColor3 = GUI.Colors.SurfaceLight
+    FastModeBtn.BorderSizePixel = 0
+    FastModeBtn.Font = Enum.Font.GothamBold
+    FastModeBtn.TextColor3 = GUI.Colors.TextMuted
+    FastModeBtn.TextSize = 13
+    FastModeBtn.Text = "FAST MODE"
+    FastModeBtn.AutoButtonColor = false
+    FastModeBtn.Parent = Header
+    
+    local FastBtnCorner = Instance.new("UICorner")
+    FastBtnCorner.CornerRadius = UDim.new(0, 8)
+    FastBtnCorner.Parent = FastModeBtn
+    
+    local FastIcon = Icons.Create(FastModeBtn, "zap", 18, GUI.Colors.TextMuted)
+    FastIcon.Position = UDim2.new(0, 12, 0.5, -9)
+    
+    -- Fast mode toggle logic
+    FastModeBtn.MouseButton1Click:Connect(function()
+        GUI.Config.FastMode = not GUI.Config.FastMode
+        
+        if GUI.Config.FastMode then
+            Tween(FastModeBtn, {BackgroundColor3 = GUI.Colors.Primary}, 0.2)
+            Tween(FastModeBtn, {TextColor3 = GUI.Colors.Text}, 0.2)
+            FastIcon:Destroy()
+            FastIcon = Icons.Create(FastModeBtn, "zap", 18, GUI.Colors.Text)
+            FastIcon.Position = UDim2.new(0, 12, 0.5, -9)
+            
+            -- Enable fast mode
+            if GUI.SetBoostFPS then
+                GUI.SetBoostFPS(true)
+            end
+        else
+            Tween(FastModeBtn, {BackgroundColor3 = GUI.Colors.SurfaceLight}, 0.2)
+            Tween(FastModeBtn, {TextColor3 = GUI.Colors.TextMuted}, 0.2)
+            FastIcon:Destroy()
+            FastIcon = Icons.Create(FastModeBtn, "zap", 18, GUI.Colors.TextMuted)
+            FastIcon.Position = UDim2.new(0, 12, 0.5, -9)
+            
+            -- Disable fast mode
+            if GUI.SetBoostFPS then
+                GUI.SetBoostFPS(false)
+            end
+        end
+    end)
+    
+    -- Stats container
+    local StatsContainer = Instance.new("Frame")
+    StatsContainer.Position = UDim2.new(0, 30, 0, 100)
+    StatsContainer.Size = UDim2.new(1, -60, 1, -120)
+    StatsContainer.BackgroundTransparency = 1
+    StatsContainer.Parent = RightPanel
+    
+    local StatsLayout = Instance.new("UIListLayout")
+    StatsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    StatsLayout.Padding = UDim.new(0, 16)
+    StatsLayout.Parent = StatsContainer
+    
+    -- Stat card creation function
+    local function CreateStatCard(label, value, iconType, order)
+        local Card = Instance.new("Frame")
+        Card.Size = UDim2.new(1, 0, 0, 90)
+        Card.BackgroundColor3 = GUI.Colors.SurfaceLight
+        Card.BorderSizePixel = 0
+        Card.LayoutOrder = order
+        Card.BackgroundTransparency = 1
+        Card.Parent = StatsContainer
+        
+        local CardCorner = Instance.new("UICorner")
+        CardCorner.CornerRadius = UDim.new(0, 12)
+        CardCorner.Parent = Card
+        
+        local CardStroke = Instance.new("UIStroke")
+        CardStroke.Color = GUI.Colors.Border
+        CardStroke.Thickness = 1
+        CardStroke.Transparency = 0.8
+        CardStroke.Parent = Card
+        
+        -- Icon container
+        local IconContainer = Instance.new("Frame")
+        IconContainer.Size = UDim2.new(0, 56, 0, 56)
+        IconContainer.Position = UDim2.new(0, 20, 0.5, -28)
+        IconContainer.BackgroundColor3 = GUI.Colors.Surface
+        IconContainer.BorderSizePixel = 0
+        IconContainer.Parent = Card
+        
+        local IconCorner = Instance.new("UICorner")
+        IconCorner.CornerRadius = UDim.new(0, 12)
+        IconCorner.Parent = IconContainer
+        
+        local Icon = Icons.Create(IconContainer, iconType, 28, GUI.Colors.Primary)
+        Icon.Position = UDim2.new(0.5, -14, 0.5, -14)
+        
+        -- Label
+        local Label = Instance.new("TextLabel")
+        Label.Text = label
+        Label.Size = UDim2.new(1, -100, 0, 22)
+        Label.Position = UDim2.new(0, 90, 0, 18)
+        Label.BackgroundTransparency = 1
+        Label.Font = Enum.Font.Gotham
+        Label.TextSize = 13
+        Label.TextColor3 = GUI.Colors.TextMuted
+        Label.TextXAlignment = Enum.TextXAlignment.Left
+        Label.Parent = Card
+        
+        -- Value
+        local Value = Instance.new("TextLabel")
+        Value.Text = value
+        Value.Size = UDim2.new(1, -100, 0, 32)
+        Value.Position = UDim2.new(0, 90, 0, 42)
+        Value.BackgroundTransparency = 1
+        Value.Font = Enum.Font.GothamBold
+        Value.TextSize = 24
+        Value.TextColor3 = GUI.Colors.Text
+        Value.TextXAlignment = Enum.TextXAlignment.Left
+        Value.TextTruncate = Enum.TextTruncate.AtEnd
+        Value.Parent = Card
+        
+        -- Hover effect
+        local hoverConnection = Card.MouseEnter:Connect(function()
+            Tween(Card, {BackgroundTransparency = 0}, 0.2)
+            Tween(CardStroke, {Transparency = 0.5}, 0.2)
+        end)
+        GUI.AddConnection(hoverConnection)
+        
+        local leaveConnection = Card.MouseLeave:Connect(function()
+            Tween(Card, {BackgroundTransparency = 1}, 0.2)
+            Tween(CardStroke, {Transparency = 0.8}, 0.2)
+        end)
+        GUI.AddConnection(leaveConnection)
+        
+        -- Animate in
+        Card.BackgroundTransparency = 1
+        task.wait(order * 0.05)
+        Tween(Card, {BackgroundTransparency = 0.3}, 0.5, Enum.EasingStyle.Quart)
+        
+        return Value
     end
+    
+    -- Create stat cards
+    vars.TargetLabel = CreateStatCard("CURRENT TARGET", "Searching...", "target", 1)
+    vars.StateLabel = CreateStatCard("STATUS", "Initializing", "status", 2)
+    vars.BountyLabel = CreateStatCard("SESSION BOUNTY", "+0", "bounty", 3)
+    vars.TimeLabel = CreateStatCard("SESSION TIME", "00:00:00", "time", 4)
+    vars.KillsLabel = CreateStatCard("TOTAL ELIMINATIONS", "0", "skull", 5)
     
     -- Dragging
     local dragging, dragInput, dragStart, startPos
     
     local dragBeganConnection = GUI.MainFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or
            input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPos = GUI.MainFrame.Position
             
-            SmoothTween(GUI.MainFrame, {
-                Size = GUI.MainFrame.Size - UDim2.new(0, 6, 0, 6)
-            }, 0.1)
+            Tween(GUI.MainFrame, {Size = GUI.MainFrame.Size - UDim2.new(0, 4, 0, 4)}, 0.1)
             
             local endConnection
             endConnection = input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then 
+                if input.UserInputState == Enum.UserInputState.End then
                     dragging = false
-                    SmoothTween(GUI.MainFrame, {
-                        Size = UDim2.new(0, 400, 0, 560)
-                    }, 0.1)
+                    Tween(GUI.MainFrame, {Size = UDim2.new(0, 900, 0, 600)}, 0.1)
                     if endConnection then
                         endConnection:Disconnect()
                     end
@@ -718,9 +966,9 @@ function GUI.Init(vars)
     GUI.AddConnection(dragBeganConnection)
     
     local dragChangedConnection = GUI.MainFrame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or 
+        if input.UserInputType == Enum.UserInputType.MouseMovement or
            input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input 
+            dragInput = input
         end
     end)
     GUI.AddConnection(dragChangedConnection)
@@ -728,265 +976,39 @@ function GUI.Init(vars)
     local inputChangedConnection = UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging and GUI.MainFrame and GUI.MainFrame.Parent then
             local delta = input.Position - dragStart
-            local newPos = UDim2.new(
-                startPos.X.Scale, 
-                startPos.X.Offset + delta.X, 
-                startPos.Y.Scale, 
+            GUI.MainFrame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
                 startPos.Y.Offset + delta.Y
             )
-            GUI.MainFrame.Position = newPos
         end
     end)
     GUI.AddConnection(inputChangedConnection)
-
-    -- Header
-    local Header = Instance.new("Frame")
-    Header.Size = UDim2.new(1, 0, 0, 70)
-    Header.BackgroundTransparency = 1
-    Header.ZIndex = 2
-    Header.Parent = GUI.MainFrame
     
-    local HeaderTitle = Instance.new("TextLabel")
-    HeaderTitle.Text = "SKIBIDI"
-    HeaderTitle.Size = UDim2.new(1, -50, 1, 0)
-    HeaderTitle.Position = UDim2.new(0, 25, 0, 0)
-    HeaderTitle.BackgroundTransparency = 1
-    HeaderTitle.Font = Enum.Font.GothamMedium
-    HeaderTitle.TextColor3 = GUI.TextPrimary
-    HeaderTitle.TextSize = 28
-    HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
-    HeaderTitle.ZIndex = 3
-    HeaderTitle.Parent = Header
-    
-    local HeaderGradient = Instance.new("UIGradient")
-    HeaderGradient.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(180,180,220))
-    }
-    HeaderGradient.Rotation = 0
-    HeaderGradient.Parent = HeaderTitle
-    
-    GUI.AddTask(task.spawn(function()
-        while HeaderGradient and HeaderGradient.Parent do
-            SmoothTween(HeaderGradient, {Rotation = 360}, 8, Enum.EasingStyle.Linear)
-            task.wait(8)
-            HeaderGradient.Rotation = 0
-        end
-    end))
-
-    -- Version badge
-    local VersionBadge = Instance.new("TextLabel")
-    VersionBadge.Text = "v4.2"
-    VersionBadge.Size = UDim2.new(0, 55, 0, 28)
-    VersionBadge.Position = UDim2.new(1, -80, 0.5, -14)
-    VersionBadge.BackgroundColor3 = GUI.AccentColor
-    VersionBadge.BackgroundTransparency = 0.75
-    VersionBadge.Font = Enum.Font.GothamBold
-    VersionBadge.TextColor3 = GUI.TextPrimary
-    VersionBadge.TextSize = 14
-    VersionBadge.ZIndex = 3
-    VersionBadge.Parent = Header
-    
-    local BadgeCorner = Instance.new("UICorner")
-    BadgeCorner.CornerRadius = UDim.new(0, 14)
-    BadgeCorner.Parent = VersionBadge
-    
-    local BadgeStroke = Instance.new("UIStroke")
-    BadgeStroke.Color = GUI.AccentColor
-    BadgeStroke.Thickness = 1
-    BadgeStroke.Transparency = 0.5
-    BadgeStroke.Parent = VersionBadge
-
-    -- Stats Container
-    local StatsContainer = Instance.new("Frame")
-    StatsContainer.Position = UDim2.new(0, 20, 0, 90)
-    StatsContainer.Size = UDim2.new(1, -40, 0, 440)
-    StatsContainer.BackgroundTransparency = 1
-    StatsContainer.ZIndex = 2
-    StatsContainer.Parent = GUI.MainFrame
-    
-    local Layout = Instance.new("UIListLayout")
-    Layout.SortOrder = Enum.SortOrder.LayoutOrder
-    Layout.Padding = UDim.new(0, 14)
-    Layout.Parent = StatsContainer
-
-    -- Create custom icon function
-    local function CreateIconFrame(iconText, color)
-        local IconFrame = Instance.new("Frame")
-        IconFrame.Size = UDim2.new(0, 48, 0, 48)
-        IconFrame.BackgroundColor3 = color
-        IconFrame.BackgroundTransparency = 0.85
-        IconFrame.BorderSizePixel = 0
-        
-        local IconCorner = Instance.new("UICorner")
-        IconCorner.CornerRadius = UDim.new(0, 12)
-        IconCorner.Parent = IconFrame
-        
-        local IconStroke = Instance.new("UIStroke")
-        IconStroke.Color = color
-        IconStroke.Thickness = 1.5
-        IconStroke.Transparency = 0.6
-        IconStroke.Parent = IconFrame
-        
-        local Icon = Instance.new("TextLabel")
-        Icon.Size = UDim2.new(1, 0, 1, 0)
-        Icon.BackgroundTransparency = 1
-        Icon.Font = Enum.Font.GothamBold
-        Icon.Text = iconText
-        Icon.TextColor3 = color
-        Icon.TextSize = 24
-        Icon.Parent = IconFrame
-        
-        return IconFrame
-    end
-    
-    local function CreateStatCard(label, value, iconText, iconColor, order)
-        local Card = Instance.new("Frame")
-        Card.Size = UDim2.new(1, 0, 0, 82)
-        Card.BackgroundColor3 = GUI.SurfaceColor
-        Card.BackgroundTransparency = 0.25
-        Card.BorderSizePixel = 0
-        Card.LayoutOrder = order
-        Card.ZIndex = 2
-        Card.Parent = StatsContainer
-        
-        local CardCorner = Instance.new("UICorner")
-        CardCorner.CornerRadius = UDim.new(0, 14)
-        CardCorner.Parent = Card
-        
-        local CardStroke = Instance.new("UIStroke")
-        CardStroke.Color = Color3.fromRGB(60, 60, 80)
-        CardStroke.Thickness = 1
-        CardStroke.Transparency = 0.7
-        CardStroke.Parent = Card
-        
-        -- Hover effect
-        local enterConnection = Card.MouseEnter:Connect(function()
-            SmoothTween(Card, {BackgroundTransparency = 0.1}, 0.2)
-            SmoothTween(CardStroke, {Transparency = 0.4}, 0.2)
-        end)
-        GUI.AddConnection(enterConnection)
-        
-        local leaveConnection = Card.MouseLeave:Connect(function()
-            SmoothTween(Card, {BackgroundTransparency = 0.25}, 0.2)
-            SmoothTween(CardStroke, {Transparency = 0.7}, 0.2)
-        end)
-        GUI.AddConnection(leaveConnection)
-        
-        -- Icon
-        local Icon = CreateIconFrame(iconText, iconColor)
-        Icon.Position = UDim2.new(0, 17, 0.5, -24)
-        Icon.Parent = Card
-        
-        -- Label
-        local Label = Instance.new("TextLabel")
-        Label.Text = label
-        Label.Size = UDim2.new(1, -85, 0, 22)
-        Label.Position = UDim2.new(0, 75, 0, 14)
-        Label.BackgroundTransparency = 1
-        Label.Font = Enum.Font.Gotham
-        Label.TextSize = 14
-        Label.TextColor3 = GUI.TextSecondary
-        Label.TextXAlignment = Enum.TextXAlignment.Left
-        Label.ZIndex = 3
-        Label.Parent = Card
-        
-        -- Value
-        local Value = Instance.new("TextLabel")
-        Value.Text = value
-        Value.Size = UDim2.new(1, -85, 0, 32)
-        Value.Position = UDim2.new(0, 75, 0, 36)
-        Value.BackgroundTransparency = 1
-        Value.Font = Enum.Font.GothamBold
-        Value.TextSize = 22
-        Value.TextColor3 = GUI.TextPrimary
-        Value.TextXAlignment = Enum.TextXAlignment.Left
-        Value.ZIndex = 3
-        Value.TextTruncate = Enum.TextTruncate.AtEnd
-        Value.Parent = Card
-        
-        return Value
-    end
-
-    -- Create stat cards with custom icons
-    vars.TargetLabel = CreateStatCard("Current Target", "Searching...", "◉", GUI.AccentColor, 1)
-    vars.StateLabel = CreateStatCard("Status", "Initializing", "⚡", GUI.SecondaryColor, 2)
-    vars.BountyLabel = CreateStatCard("Bounty Gained", "+0", "◆", Color3.fromRGB(255, 215, 0), 3)
-    vars.TimeLabel = CreateStatCard("Session Time", "00:00:00", "◷", Color3.fromRGB(100, 200, 255), 4)
-    vars.KillsLabel = CreateStatCard("Total Eliminations", "0", "✦", Color3.fromRGB(255, 100, 100), 5)
-
-    -- Session time updater (updates every 1 second, not every frame)
-    local sessionStartTime = tick()
-    GUI.AddTask(task.spawn(function()
-        while vars.TimeLabel and vars.TimeLabel.Parent do
-            task.wait(1) -- Update every 1 second instead of every frame
-            
-            local elapsed = tick() - sessionStartTime
-            local hours = math.floor(elapsed / 3600)
-            local minutes = math.floor((elapsed % 3600) / 60)
-            local seconds = math.floor(elapsed % 60)
-            
-            vars.TimeLabel.Text = string.format("%02d:%02d:%02d", hours, minutes, seconds)
-        end
-    end))
-
     -- Entrance animation
-    SmoothTween(GUI.MainFrame, {
-        Size = UDim2.new(0, 400, 0, 560)
-    }, 0.7, Enum.EasingStyle.Back)
-
-    -- Stagger card animations
-    GUI.AddTask(task.spawn(function()
-        for i, card in ipairs(StatsContainer:GetChildren()) do
-            if card:IsA("Frame") and card ~= Layout then
-                card.BackgroundTransparency = 1
-                task.wait(0.06)
-                SmoothTween(card, {BackgroundTransparency = 0.25}, 0.5)
-            end
-        end
-    end))
-
-    print("[SKIBIDI] GUI initialized")
+    Tween(GUI.MainFrame, {Size = UDim2.new(0, 900, 0, 600)}, 0.8, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
     
-    -- Auto-load assets after GUI is created
+    -- Auto-load assets
     task.spawn(function()
         GUI.InitAssets()
     end)
-
+    
     -- Logger
     local Logger = {}
     
-    function Logger:Log(m) 
+    function Logger:Log(m)
         if vars.StateLabel and vars.StateLabel.Parent then
             vars.StateLabel.Text = tostring(m)
         end
     end
     
-    function Logger:Info(m) 
-        if vars.StateLabel and vars.StateLabel.Parent then
-            vars.StateLabel.Text = tostring(m)
-        end
-    end
+    function Logger:Info(m) self:Log(m) end
+    function Logger:Success(m) self:Log(m) end
+    function Logger:Warning(m) self:Log(m) end
+    function Logger:Error(m) self:Log(m) end
     
-    function Logger:Success(m) 
-        if vars.StateLabel and vars.StateLabel.Parent then
-            vars.StateLabel.Text = tostring(m)
-        end
-    end
-    
-    function Logger:Warning(m) 
-        if vars.StateLabel and vars.StateLabel.Parent then
-            vars.StateLabel.Text = tostring(m)
-        end
-    end
-    
-    function Logger:Error(m) 
-        if vars.StateLabel and vars.StateLabel.Parent then
-            vars.StateLabel.Text = tostring(m)
-        end
-    end
-    
-    function Logger:Target(m) 
+    function Logger:Target(m)
         if vars.TargetLabel and vars.TargetLabel.Parent then
             vars.TargetLabel.Text = tostring(m)
         end
@@ -994,22 +1016,31 @@ function GUI.Init(vars)
     
     return Logger
 end
-function GUI.ShowServerHopScreen()
+
+-- ============================================
+-- SERVER HOP SCREEN
+-- ============================================
+
+function GUI.ShowServerChangeScreen()
     if not GUI.SkibidiGui then return end
-
+    
     local Screen = Instance.new("Frame")
-    Screen.Size = UDim2.new(1,0,1,0)
-    Screen.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    Screen.Name = "ServerHopScreen"
+    Screen.Size = UDim2.new(1, 0, 1, 0)
+    Screen.BackgroundColor3 = GUI.Colors.Background
     Screen.BackgroundTransparency = 0
-    Screen.ZIndex = 2000
+    Screen.ZIndex = 20000
     Screen.Parent = GUI.SkibidiGui
-
+    
+    -- Background image
     local Bg = Instance.new("ImageLabel")
-    Bg.Size = UDim2.new(1,0,1,0)
+    Bg.Size = UDim2.new(1, 0, 1, 0)
     Bg.BackgroundTransparency = 1
     Bg.ScaleType = Enum.ScaleType.Crop
+    Bg.ImageTransparency = 1
+    Bg.ZIndex = 20001
     Bg.Parent = Screen
-
+    
     GUI.AddTask(task.spawn(function()
         local asset = getcustomasset or getsynasset
         if asset and isfile and writefile then
@@ -1018,35 +1049,109 @@ function GUI.ShowServerHopScreen()
                 writefile(path, game:HttpGet(ASSETS_REPO.."change.png", true))
             end
             Bg.Image = asset(path)
+            Tween(Bg, {ImageTransparency = 0.15}, 1)
         end
     end))
-
-    local Text = Instance.new("TextLabel")
-    Text.Size = UDim2.new(0.5,0,1,0)
-    Text.Position = UDim2.new(0.05,0,0,0)
-    Text.BackgroundTransparency = 1
-    Text.Text = "Changing Server"
-    Text.Font = Enum.Font.GothamMedium
-    Text.TextSize = 36
-    Text.TextColor3 = GUI.TextPrimary
-    Text.TextXAlignment = Left
-    Text.TextYAlignment = Center
-    Text.ZIndex = 2
-    Text.Parent = Screen
-
-    SmoothTween(Text, {TextTransparency = 0.2}, 1.2)
+    
+    -- Dark overlay
+    local Overlay = Instance.new("Frame")
+    Overlay.Size = UDim2.new(1, 0, 1, 0)
+    Overlay.BackgroundColor3 = GUI.Colors.Overlay
+    Overlay.BackgroundTransparency = 0.3
+    Overlay.BorderSizePixel = 0
+    Overlay.ZIndex = 20002
+    Overlay.Parent = Screen
+    
+    -- Center content
+    local Container = Instance.new("Frame")
+    Container.Size = UDim2.new(0, 500, 0, 200)
+    Container.Position = UDim2.new(0.5, -250, 0.5, -100)
+    Container.BackgroundTransparency = 1
+    Container.ZIndex = 20003
+    Container.Parent = Screen
+    
+    local Title = Instance.new("TextLabel")
+    Title.Text = "CHANGING SERVER"
+    Title.Size = UDim2.new(1, 0, 0, 60)
+    Title.BackgroundTransparency = 1
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 42
+    Title.TextColor3 = GUI.Colors.Text
+    Title.TextTransparency = 1
+    Title.ZIndex = 20004
+    Title.Parent = Container
+    
+    local Subtitle = Instance.new("TextLabel")
+    Subtitle.Text = "Finding optimal server..."
+    Subtitle.Size = UDim2.new(1, 0, 0, 30)
+    Subtitle.Position = UDim2.new(0, 0, 0, 70)
+    Subtitle.BackgroundTransparency = 1
+    Subtitle.Font = Enum.Font.Gotham
+    Subtitle.TextSize = 16
+    Subtitle.TextColor3 = GUI.Colors.TextMuted
+    Subtitle.TextTransparency = 1
+    Subtitle.ZIndex = 20004
+    Subtitle.Parent = Container
+    
+    -- Progress bar
+    local ProgressBg = Instance.new("Frame")
+    ProgressBg.Size = UDim2.new(1, 0, 0, 4)
+    ProgressBg.Position = UDim2.new(0, 0, 0, 130)
+    ProgressBg.BackgroundColor3 = GUI.Colors.Surface
+    ProgressBg.BorderSizePixel = 0
+    ProgressBg.BackgroundTransparency = 1
+    ProgressBg.ZIndex = 20004
+    ProgressBg.Parent = Container
+    
+    local ProgressCorner = Instance.new("UICorner")
+    ProgressCorner.CornerRadius = UDim.new(1, 0)
+    ProgressCorner.Parent = ProgressBg
+    
+    local Progress = Instance.new("Frame")
+    Progress.Size = UDim2.new(0, 0, 1, 0)
+    Progress.BackgroundColor3 = GUI.Colors.Primary
+    Progress.BorderSizePixel = 0
+    Progress.ZIndex = 20005
+    Progress.Parent = ProgressBg
+    
+    local ProgressCorner2 = Instance.new("UICorner")
+    ProgressCorner2.CornerRadius = UDim.new(1, 0)
+    ProgressCorner2.Parent = Progress
+    
+    -- Animate in
+    Tween(Title, {TextTransparency = 0}, 0.6)
+    task.wait(0.1)
+    Tween(Subtitle, {TextTransparency = 0}, 0.6)
+    task.wait(0.1)
+    Tween(ProgressBg, {BackgroundTransparency = 0.6}, 0.6)
+    
+    -- Animate progress
+    Tween(Progress, {Size = UDim2.new(1, 0, 1, 0)}, 3, Enum.EasingStyle.Linear)
+    
+    -- Pulse animation
+    GUI.AddTask(task.spawn(function()
+        while Screen and Screen.Parent do
+            Tween(Title, {TextTransparency = 0.3}, 1.2, Enum.EasingStyle.Sine)
+            task.wait(1.2)
+            if not Screen or not Screen.Parent then break end
+            Tween(Title, {TextTransparency = 0}, 1.2, Enum.EasingStyle.Sine)
+            task.wait(1.2)
+        end
+    end))
 end
+
 function GUI.SetBoostFPS(state)
     if state then
         if GUI._BoostScreen then return end
-
+        
         local Screen = Instance.new("ImageLabel")
-        Screen.Size = UDim2.new(1,0,1,0)
+        Screen.Size = UDim2.new(1, 0, 1, 0)
         Screen.BackgroundTransparency = 1
         Screen.ScaleType = Enum.ScaleType.Crop
-        Screen.ZIndex = 1500
+        Screen.ImageTransparency = 0.8
+        Screen.ZIndex = 15000
         Screen.Parent = GUI.SkibidiGui
-
+        
         GUI.AddTask(task.spawn(function()
             local asset = getcustomasset or getsynasset
             if asset and isfile and writefile then
@@ -1057,7 +1162,7 @@ function GUI.SetBoostFPS(state)
                 Screen.Image = asset(path)
             end
         end))
-
+        
         GUI._BoostScreen = Screen
     else
         if GUI._BoostScreen then
@@ -1067,33 +1172,27 @@ function GUI.SetBoostFPS(state)
     end
 end
 
--- Cleanup function
+-- ============================================
+-- CLEANUP
+-- ============================================
+
 function GUI.Cleanup()
-    print("[SKIBIDI] Starting cleanup...")
-    
     GUI.SaveMusicState()
     
-    -- Cancel tweens
     for _, tween in ipairs(GUI.RunningTweens) do
         pcall(function()
-            if tween then
-                tween:Cancel()
-            end
+            if tween then tween:Cancel() end
         end)
     end
     GUI.RunningTweens = {}
     
-    -- Cancel tasks
     for _, taskThread in ipairs(GUI.Tasks) do
         pcall(function()
-            if taskThread then
-                task.cancel(taskThread)
-            end
+            if taskThread then task.cancel(taskThread) end
         end)
     end
     GUI.Tasks = {}
     
-    -- Disconnect connections
     for _, connection in ipairs(GUI.Connections) do
         pcall(function()
             if connection and connection.Connected then
@@ -1103,7 +1202,6 @@ function GUI.Cleanup()
     end
     GUI.Connections = {}
     
-    -- Stop music
     if GUI.MusicSound then
         pcall(function()
             GUI.MusicSound:Stop()
@@ -1112,7 +1210,6 @@ function GUI.Cleanup()
         GUI.MusicSound = nil
     end
     
-    -- Destroy GUI
     if GUI.SkibidiGui then
         pcall(function()
             GUI.SkibidiGui:Destroy()
@@ -1120,12 +1217,9 @@ function GUI.Cleanup()
         GUI.SkibidiGui = nil
     end
     
-    -- Clear references
     GUI.MainFrame = nil
     GUI.BackgroundImage = nil
     GUI.LoadingScreen = nil
-    
-    print("[SKIBIDI] Cleanup complete")
 end
 
 return GUI
