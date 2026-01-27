@@ -1020,6 +1020,10 @@ function GUI.Init(vars)
 
     -- Modern icon with glow
     local function CreateIconFrame(iconText, color)
+        -- Add nil check and default value
+        iconText = tostring(iconText or "◆")
+        color = color or GUI.AccentColor
+        
         local IconFrame = Instance.new("Frame")
         IconFrame.Size = UDim2.new(0, 58, 0, 58)
         IconFrame.BackgroundColor3 = color
@@ -1051,6 +1055,13 @@ function GUI.Init(vars)
     end
     
     local function CreateStatCard(label, value, iconText, iconColor, order)
+        -- Add nil checks and default values at the start
+        label = tostring(label or "LABEL")
+        value = tostring(value or "0")
+        iconText = tostring(iconText or "◆")
+        iconColor = iconColor or GUI.AccentColor
+        order = order or 1
+        
         local Card = Instance.new("Frame")
         Card.Size = UDim2.new(1, 0, 0, 95)
         Card.BackgroundColor3 = GUI.SurfaceColor
