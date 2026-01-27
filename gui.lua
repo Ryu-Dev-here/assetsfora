@@ -16,13 +16,13 @@ GUI.Connections = {}
 GUI.Tasks = {}
 GUI.RunningTweens = {}
 
--- Modern accent colors - Animated theme
-GUI.AccentColor = Color3.fromRGB(138, 43, 226) -- Blue Violet
-GUI.SecondaryColor = Color3.fromRGB(255, 20, 147) -- Deep Pink
-GUI.BackgroundColor = Color3.fromRGB(15, 15, 25)
-GUI.SurfaceColor = Color3.fromRGB(25, 25, 40)
-GUI.TextPrimary = Color3.fromRGB(240, 240, 255)
-GUI.TextSecondary = Color3.fromRGB(150, 150, 180)
+GUI.AccentColor = Color3.fromRGB(200, 200, 255)      -- soft white-blue
+GUI.SecondaryColor = Color3.fromRGB(160, 160, 200)   -- muted secondary
+GUI.BackgroundColor = Color3.fromRGB(12, 12, 16)
+GUI.SurfaceColor = Color3.fromRGB(20, 20, 26)
+GUI.TextPrimary = Color3.fromRGB(245, 245, 255)
+GUI.TextSecondary = Color3.fromRGB(170, 170, 185)
+
 
 -- Configuration
 local WORKSPACE_FOLDER = "cuackerdoing"
@@ -180,7 +180,30 @@ function GUI.CreateFullScreenLoader()
     }
     Gradient.Rotation = 45
     Gradient.Parent = LoaderScreen
-    
+    local Bg = Instance.new("ImageLabel")
+    Bg.Size = UDim2.new(1,0,1,0)
+    Bg.BackgroundTransparency = 1
+    Bg.ImageTransparency = 0
+    Bg.ScaleType = Enum.ScaleType.Crop
+    Bg.ZIndex = 0
+    Bg.Parent = LoaderScreen
+GUI.AddTask(task.spawn(function()
+    local asset = getcustomasset or getsynasset
+    if asset and isfile and writefile then
+        local path = WORKSPACE_FOLDER.."/loading.png"
+        if not isfile(path) then
+            writefile(path, game:HttpGet(ASSETS_REPO.."loading.png", true))
+        end
+        Bg.Image = asset(path)
+    end
+end))
+
+local Dark = Instance.new("Frame")
+Dark.Size = UDim2.new(1,0,1,0)
+Dark.BackgroundColor3 = Color3.fromRGB(0,0,0)
+Dark.BackgroundTransparency = 0.45
+Dark.ZIndex = 1
+Dark.Parent = LoaderScreen
     -- Rotate gradient continuously
     GUI.AddTask(task.spawn(function()
         while LoaderScreen and LoaderScreen.Parent and Gradient and Gradient.Parent do
@@ -724,25 +747,33 @@ function GUI.Init(vars)
     Header.Parent = GUI.MainFrame
     
     local HeaderTitle = Instance.new("TextLabel")
-    HeaderTitle.Text = "SKIBIDI FARM"
+    HeaderTitle.Text = "SKIBIDI"
     HeaderTitle.Size = UDim2.new(1, -50, 1, 0)
     HeaderTitle.Position = UDim2.new(0, 25, 0, 0)
     HeaderTitle.BackgroundTransparency = 1
-    HeaderTitle.Font = Enum.Font.GothamBlack
+    HeaderTitle.Font = Enum.Font.GothamMedium
     HeaderTitle.TextColor3 = GUI.TextPrimary
-    HeaderTitle.TextSize = 32
+    HeaderTitle.TextSize = 28
     HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
     HeaderTitle.ZIndex = 3
     HeaderTitle.Parent = Header
     
     local HeaderGradient = Instance.new("UIGradient")
     HeaderGradient.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, GUI.AccentColor),
-        ColorSequenceKeypoint.new(1, GUI.SecondaryColor)
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(180,180,220))
     }
-    HeaderGradient.Rotation = 45
+    HeaderGradient.Rotation = 0
     HeaderGradient.Parent = HeaderTitle
     
+    GUI.AddTask(task.spawn(function()
+        while HeaderGradient and HeaderGradient.Parent do
+            SmoothTween(HeaderGradient, {Rotation = 360}, 8, Enum.EasingStyle.Linear)
+            task.wait(8)
+            HeaderGradient.Rotation = 0
+        end
+    end))
+
     -- Version badge
     local VersionBadge = Instance.new("TextLabel")
     VersionBadge.Text = "v4.2"
@@ -962,6 +993,78 @@ function GUI.Init(vars)
     end
     
     return Logger
+end
+function GUI.ShowServerHopScreen()
+    if not GUI.SkibidiGui then return end
+
+    local Screen = Instance.new("Frame")
+    Screen.Size = UDim2.new(1,0,1,0)
+    Screen.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    Screen.BackgroundTransparency = 0
+    Screen.ZIndex = 2000
+    Screen.Parent = GUI.SkibidiGui
+
+    local Bg = Instance.new("ImageLabel")
+    Bg.Size = UDim2.new(1,0,1,0)
+    Bg.BackgroundTransparency = 1
+    Bg.ScaleType = Enum.ScaleType.Crop
+    Bg.Parent = Screen
+
+    GUI.AddTask(task.spawn(function()
+        local asset = getcustomasset or getsynasset
+        if asset and isfile and writefile then
+            local path = WORKSPACE_FOLDER.."/change.png"
+            if not isfile(path) then
+                writefile(path, game:HttpGet(ASSETS_REPO.."change.png", true))
+            end
+            Bg.Image = asset(path)
+        end
+    end))
+
+    local Text = Instance.new("TextLabel")
+    Text.Size = UDim2.new(0.5,0,1,0)
+    Text.Position = UDim2.new(0.05,0,0,0)
+    Text.BackgroundTransparency = 1
+    Text.Text = "Changing Server"
+    Text.Font = Enum.Font.GothamMedium
+    Text.TextSize = 36
+    Text.TextColor3 = GUI.TextPrimary
+    Text.TextXAlignment = Left
+    Text.TextYAlignment = Center
+    Text.ZIndex = 2
+    Text.Parent = Screen
+
+    SmoothTween(Text, {TextTransparency = 0.2}, 1.2)
+end
+function GUI.SetBoostFPS(state)
+    if state then
+        if GUI._BoostScreen then return end
+
+        local Screen = Instance.new("ImageLabel")
+        Screen.Size = UDim2.new(1,0,1,0)
+        Screen.BackgroundTransparency = 1
+        Screen.ScaleType = Enum.ScaleType.Crop
+        Screen.ZIndex = 1500
+        Screen.Parent = GUI.SkibidiGui
+
+        GUI.AddTask(task.spawn(function()
+            local asset = getcustomasset or getsynasset
+            if asset and isfile and writefile then
+                local path = WORKSPACE_FOLDER.."/boost.png"
+                if not isfile(path) then
+                    writefile(path, game:HttpGet(ASSETS_REPO.."boost.png", true))
+                end
+                Screen.Image = asset(path)
+            end
+        end))
+
+        GUI._BoostScreen = Screen
+    else
+        if GUI._BoostScreen then
+            GUI._BoostScreen:Destroy()
+            GUI._BoostScreen = nil
+        end
+    end
 end
 
 -- Cleanup function
