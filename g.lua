@@ -1,9 +1,3 @@
--- ============================================
--- PREMIUM SKIBIDI GUI v5.0
--- Ultra-clean, modern, professional design
--- Custom SVG icons, smooth animations, dual-panel layout
--- ============================================
-
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
