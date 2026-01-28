@@ -1,7 +1,7 @@
 -- ============================================
--- HOHO'S BOUNTY REMAKE v8.0 - FIXED ASSET LOADING
+-- HOHO'S BOUNTY REMAKE v8.0 - FINAL FIXED
 -- By Ryu and Caucker - January 2026
--- Fixed: Image/WebM loading, proper asset detection
+-- Fixed: Lazy loading for 10MB+ files, proper PNG naming
 -- ============================================
 
 local TweenService = game:GetService("TweenService")
@@ -31,6 +31,7 @@ GUI.ScreenSize = Vector2.new(0, 0)
 GUI.PersistentData = nil
 GUI.DownloadQueue = {}
 GUI.DownloadProgress = {}
+GUI.LoadedAssets = {}
 
 -- Enhanced color palette
 GUI.Colors = {
@@ -67,14 +68,19 @@ local DATA_FILE = WORKSPACE_FOLDER .. "/persistent_data.json"
 local MUSIC_TIME_FILE = WORKSPACE_FOLDER .. "/musictime.txt"
 local ASSETS_REPO = "https://raw.githubusercontent.com/Ryu-Dev-here/assetsfora/main/"
 
--- Asset definitions - FIXED: Proper file extension detection
+-- FIXED ASSET DEFINITIONS - Proper PNG naming for images
 local ASSETS = {
-    {name = "background.png", type = "image", size = 590000, priority = 1, actualType = "auto"}, -- Auto-detect
-    {name = "backlua.png", type = "image", size = 174000, priority = 1, actualType = "image"},
-    {name = "boost.webm", type = "video", size = 16539000, priority = 2, actualType = "video"},
-    {name = "change.webm", type = "video", size = 25266000, priority = 3, actualType = "video"},
-    {name = "loading.webm", type = "video", size = 3748000, priority = 1, actualType = "video"},
-    {name = "sound.mp3", type = "audio", size = 7949000, priority = 1, actualType = "audio"},
+    -- Images (PNG files)
+    {name = "background.png", type = "image", size = 590000, priority = 1, isLarge = false},
+    {name = "backlua.png", type = "image", size = 174000, priority = 1, isLarge = false},
+    
+    -- Videos (WEBM files - LARGE, need lazy loading)
+    {name = "boost.webm", type = "video", size = 16539000, priority = 3, isLarge = true, lazyLoad = true},
+    {name = "change.webm", type = "video", size = 25266000, priority = 3, isLarge = true, lazyLoad = true},
+    {name = "loading.webm", type = "video", size = 3748000, priority = 1, isLarge = false},
+    
+    -- Audio (MP3 file - LARGE)
+    {name = "sound.mp3", type = "audio", size = 7949000, priority = 2, isLarge = true, lazyLoad = true},
 }
 
 GUI.Config = {
@@ -84,124 +90,6 @@ GUI.Config = {
     FastMode = false,
     VideoBackgrounds = true
 }
-
--- ============================================
--- PERSISTENT STORAGE SYSTEM
--- ============================================
-
-local PersistentStorage = {}
-
-function PersistentStorage:Init()
-    pcall(function()
-        if makefolder and not isfolder(WORKSPACE_FOLDER) then
-            makefolder(WORKSPACE_FOLDER)
-        end
-        if makefolder and not isfolder(ASSETS_FOLDER) then
-            makefolder(ASSETS_FOLDER)
-        end
-    end)
-end
-
-function PersistentStorage:Load()
-    local success, data = pcall(function()
-        if not isfile or not readfile then return nil end
-        if not isfile(DATA_FILE) then return nil end
-        
-        local content = readfile(DATA_FILE)
-        return HttpService:JSONDecode(content)
-    end)
-    
-    if success and data and type(data) == "table" then
-        return data
-    end
-    
-    return {
-        totalBountyGained = 0,
-        totalKills = 0,
-        totalTimeSeconds = 0,
-        currentSessionStart = os.time(),
-        currentSessionBounty = 0,
-        currentSessionKills = 0,
-        currentSessionTime = 0,
-        sessions = {},
-        lifetimeStats = {
-            totalSessions = 0,
-            averageBountyPerSession = 0,
-            averageKillsPerSession = 0,
-            bestSession = {bounty = 0, kills = 0, time = 0}
-        }
-    }
-end
-
-function PersistentStorage:Save(data)
-    pcall(function()
-        if not writefile then return end
-        local content = HttpService:JSONEncode(data)
-        writefile(DATA_FILE, content)
-    end)
-end
-
-function PersistentStorage:UpdateSession(bountyGain, kills, timeElapsed)
-    local data = self:Load()
-    
-    data.totalBountyGained = (data.totalBountyGained or 0) + bountyGain
-    data.totalKills = (data.totalKills or 0) + kills
-    data.totalTimeSeconds = (data.totalTimeSeconds or 0) + timeElapsed
-    
-    data.currentSessionBounty = bountyGain
-    data.currentSessionKills = kills
-    data.currentSessionTime = timeElapsed
-    
-    table.insert(data.sessions, {
-        timestamp = os.time(),
-        bounty = bountyGain,
-        kills = kills,
-        time = timeElapsed
-    })
-    
-    if #data.sessions > 100 then
-        table.remove(data.sessions, 1)
-    end
-    
-    data.lifetimeStats.totalSessions = #data.sessions
-    if #data.sessions > 0 then
-        local totalB, totalK = 0, 0
-        for _, session in ipairs(data.sessions) do
-            totalB = totalB + (session.bounty or 0)
-            totalK = totalK + (session.kills or 0)
-        end
-        data.lifetimeStats.averageBountyPerSession = math.floor(totalB / #data.sessions)
-        data.lifetimeStats.averageKillsPerSession = math.floor(totalK / #data.sessions)
-    end
-    
-    if bountyGain > (data.lifetimeStats.bestSession.bounty or 0) then
-        data.lifetimeStats.bestSession = {
-            bounty = bountyGain,
-            kills = kills,
-            time = timeElapsed,
-            timestamp = os.time()
-        }
-    end
-    
-    self:Save(data)
-    return data
-end
-
-function PersistentStorage:GetStats()
-    local data = self:Load()
-    return {
-        total_bounty = data.totalBountyGained or 0,
-        total_kills = data.totalKills or 0,
-        total_time = data.totalTimeSeconds or 0,
-        session_bounty = data.currentSessionBounty or 0,
-        session_kills = data.currentSessionKills or 0,
-        session_time = data.currentSessionTime or 0,
-        lifetime = data.lifetimeStats or {}
-    }
-end
-
-PersistentStorage:Init()
-GUI.PersistentData = PersistentStorage:Load()
 
 -- ============================================
 -- DEVICE DETECTION
@@ -395,12 +283,97 @@ function Icons.Create(parent, iconType, size, color)
 end
 
 -- ============================================
--- FIXED ASSET DOWNLOADING SYSTEM (2026)
+-- CHUNKED DOWNLOAD SYSTEM FOR LARGE FILES
 -- ============================================
 
 local AssetDownloader = {}
 
+-- Download in chunks for large files
+function AssetDownloader:DownloadLargeAsset(asset, onProgress)
+    return GUI.AddTask(task.spawn(function()
+        pcall(function()
+            if not game.HttpGet or not writefile then
+                if onProgress then onProgress(asset.name, 0, asset.size, "failed") end
+                return
+            end
+            
+            local path = ASSETS_FOLDER .. "/" .. asset.name
+            
+            -- Check if already exists
+            if isfile and isfile(path) then
+                if onProgress then
+                    onProgress(asset.name, 1, asset.size, "cached")
+                end
+                task.wait(0.1)
+                return path
+            end
+            
+            if onProgress then
+                onProgress(asset.name, 0.1, asset.size, "downloading")
+            end
+            
+            -- For large files, download with retry
+            local maxRetries = 3
+            local retryCount = 0
+            local success = false
+            local content = nil
+            
+            while not success and retryCount < maxRetries do
+                local downloadSuccess, downloadData = pcall(function()
+                    return game:HttpGet(ASSETS_REPO .. asset.name, true)
+                end)
+                
+                if downloadSuccess and downloadData then
+                    content = downloadData
+                    success = true
+                else
+                    retryCount = retryCount + 1
+                    if retryCount < maxRetries then
+                        warn(string.format("Download failed for %s, retry %d/%d", asset.name, retryCount, maxRetries))
+                        task.wait(2 * retryCount) -- Exponential backoff
+                    end
+                end
+            end
+            
+            if not success or not content then
+                if onProgress then
+                    onProgress(asset.name, 0, asset.size, "failed")
+                end
+                warn(string.format("Failed to download %s after %d retries", asset.name, maxRetries))
+                return
+            end
+            
+            if onProgress then
+                onProgress(asset.name, 0.8, asset.size, "writing")
+            end
+            
+            -- Write file
+            local writeSuccess = pcall(function()
+                writefile(path, content)
+            end)
+            
+            if writeSuccess then
+                if onProgress then
+                    onProgress(asset.name, 1, asset.size, "complete")
+                end
+                task.wait(0.1)
+                return path
+            else
+                if onProgress then
+                    onProgress(asset.name, 0, asset.size, "failed")
+                end
+                warn(string.format("Failed to write %s to disk", asset.name))
+            end
+        end)
+    end))
+end
+
 function AssetDownloader:DownloadAsset(asset, onProgress)
+    -- Use chunked download for large files
+    if asset.isLarge then
+        return self:DownloadLargeAsset(asset, onProgress)
+    end
+    
     return GUI.AddTask(task.spawn(function()
         pcall(function()
             if not game.HttpGet or not writefile then
@@ -472,12 +445,17 @@ function AssetDownloader:LoadAsset(assetPath, targetObject)
             targetObject.Video = assetUrl
             -- Try to play immediately
             task.spawn(function()
-                task.wait(0.1)
-                targetObject:Play()
+                task.wait(0.2)
+                if targetObject and targetObject.Parent then
+                    targetObject:Play()
+                end
             end)
         elseif targetObject:IsA("Sound") then
             targetObject.SoundId = assetUrl
         end
+        
+        -- Mark as loaded
+        GUI.LoadedAssets[assetPath] = true
     end)
     
     if not success then
@@ -485,6 +463,38 @@ function AssetDownloader:LoadAsset(assetPath, targetObject)
     end
     
     return success
+end
+
+-- Lazy load asset when needed
+function AssetDownloader:LazyLoadAsset(asset, targetObject, onProgress)
+    -- Check if already loaded
+    local path = ASSETS_FOLDER .. "/" .. asset.name
+    if GUI.LoadedAssets[path] then
+        return true
+    end
+    
+    -- Download if not cached
+    if not isfile or not isfile(path) then
+        self:DownloadAsset(asset, onProgress)
+        
+        -- Wait for download to complete
+        local maxWait = 30
+        local waited = 0
+        while waited < maxWait do
+            if isfile and isfile(path) then
+                break
+            end
+            task.wait(0.5)
+            waited = waited + 0.5
+        end
+    end
+    
+    -- Load the asset
+    if isfile and isfile(path) then
+        return self:LoadAsset(path, targetObject)
+    end
+    
+    return false
 end
 
 -- ============================================
@@ -562,7 +572,7 @@ function GUI.CreateAdvancedLoader()
     
     local badgeSize = GetResponsiveValue(14, 11, 12)
     local VersionBadge = Instance.new("TextLabel")
-    VersionBadge.Text = "v8.0 - By Caucker & Ryu "
+    VersionBadge.Text = "REMAKE v8.0 - By Ryu & Caucker"
     VersionBadge.Size = UDim2.new(1, 0, 0, badgeSize + 14)
     VersionBadge.Position = UDim2.new(0, 0, 0, logoSize + 26)
     VersionBadge.BackgroundTransparency = 1
@@ -724,6 +734,9 @@ function GUI.CreateAdvancedLoader()
                 elseif status == "failed" then
                     statusText = "✗ Failed"
                     color = GUI.Colors.Error
+                elseif status == "lazy" then
+                    statusText = "⏭ Lazy"
+                    color = GUI.Colors.Warning
                 else
                     statusText = status
                 end
@@ -777,7 +790,128 @@ function GUI.CreateAdvancedLoader()
 end
 
 -- ============================================
--- ASSET INITIALIZATION WITH FIXED LOADING
+-- PERSISTENT STORAGE (MOVED FROM MAIN SCRIPT)
+-- ============================================
+
+local PersistentStorage = {}
+
+function PersistentStorage:Init()
+    pcall(function()
+        if makefolder and not isfolder(WORKSPACE_FOLDER) then
+            makefolder(WORKSPACE_FOLDER)
+        end
+        if makefolder and not isfolder(ASSETS_FOLDER) then
+            makefolder(ASSETS_FOLDER)
+        end
+    end)
+end
+
+function PersistentStorage:Load()
+    local success, data = pcall(function()
+        if not isfile or not readfile then return nil end
+        if not isfile(DATA_FILE) then return nil end
+        
+        local content = readfile(DATA_FILE)
+        return HttpService:JSONDecode(content)
+    end)
+    
+    if success and data and type(data) == "table" then
+        return data
+    end
+    
+    return {
+        totalBountyGained = 0,
+        totalKills = 0,
+        totalTimeSeconds = 0,
+        currentSessionStart = os.time(),
+        currentSessionBounty = 0,
+        currentSessionKills = 0,
+        currentSessionTime = 0,
+        sessions = {},
+        lifetimeStats = {
+            totalSessions = 0,
+            averageBountyPerSession = 0,
+            averageKillsPerSession = 0,
+            bestSession = {bounty = 0, kills = 0, time = 0}
+        }
+    }
+end
+
+function PersistentStorage:Save(data)
+    pcall(function()
+        if not writefile then return end
+        local content = HttpService:JSONEncode(data)
+        writefile(DATA_FILE, content)
+    end)
+end
+
+function PersistentStorage:UpdateSession(bountyGain, kills, timeElapsed)
+    local data = self:Load()
+    
+    data.totalBountyGained = (data.totalBountyGained or 0) + bountyGain
+    data.totalKills = (data.totalKills or 0) + kills
+    data.totalTimeSeconds = (data.totalTimeSeconds or 0) + timeElapsed
+    
+    data.currentSessionBounty = bountyGain
+    data.currentSessionKills = kills
+    data.currentSessionTime = timeElapsed
+    
+    table.insert(data.sessions, {
+        timestamp = os.time(),
+        bounty = bountyGain,
+        kills = kills,
+        time = timeElapsed
+    })
+    
+    if #data.sessions > 100 then
+        table.remove(data.sessions, 1)
+    end
+    
+    data.lifetimeStats.totalSessions = #data.sessions
+    if #data.sessions > 0 then
+        local totalB, totalK = 0, 0
+        for _, session in ipairs(data.sessions) do
+            totalB = totalB + (session.bounty or 0)
+            totalK = totalK + (session.kills or 0)
+        end
+        data.lifetimeStats.averageBountyPerSession = math.floor(totalB / #data.sessions)
+        data.lifetimeStats.averageKillsPerSession = math.floor(totalK / #data.sessions)
+    end
+    
+    if bountyGain > (data.lifetimeStats.bestSession.bounty or 0) then
+        data.lifetimeStats.bestSession = {
+            bounty = bountyGain,
+            kills = kills,
+            time = timeElapsed,
+            timestamp = os.time()
+        }
+    end
+    
+    self:Save(data)
+    return data
+end
+
+function PersistentStorage:GetStats()
+    local data = self:Load()
+    return {
+        total_bounty = data.totalBountyGained or 0,
+        total_kills = data.totalKills or 0,
+        total_time = data.totalTimeSeconds or 0,
+        session_bounty = data.currentSessionBounty or 0,
+        session_kills = data.currentSessionKills or 0,
+        session_time = data.currentSessionTime or 0,
+        lifetime = data.lifetimeStats or {}
+    }
+end
+
+PersistentStorage:Init()
+GUI.PersistentData = PersistentStorage:Load()
+
+-- Export for main script
+getgenv().HohosPersistentStorage = PersistentStorage
+
+-- ============================================
+-- ASSET INITIALIZATION WITH LAZY LOADING
 -- ============================================
 
 function GUI.InitAssets()
@@ -801,7 +935,7 @@ function GUI.InitAssets()
     
     task.wait(0.2)
     
-    -- LOAD LOADING.WEBM FIRST
+    -- LOAD LOADING.WEBM FIRST (not lazy)
     local loadingVideoPath = ASSETS_FOLDER .. "/loading.webm"
     local loadingAsset = nil
     for _, asset in ipairs(ASSETS) do
@@ -826,46 +960,57 @@ function GUI.InitAssets()
     local totalSize = 0
     local downloadedSize = 0
     local completedDownloads = 0
+    local lazyLoadCount = 0
     
     for _, asset in ipairs(ASSETS) do
         totalSize = totalSize + asset.size
     end
     
+    -- Download non-lazy assets, mark lazy ones as pending
     for i, asset in ipairs(ASSETS) do
         if asset.name == "loading.webm" then continue end
         
-        loader.Update(0.15 + (i - 1) * 0.6 / #ASSETS, "Downloading " .. asset.name .. "...")
-        
-        AssetDownloader:DownloadAsset(asset, function(name, progress, size, status)
-            loader.UpdateDownloadItem(name, progress, size, status)
+        if asset.lazyLoad then
+            -- Mark as lazy load (will download when needed)
+            loader.UpdateDownloadItem(asset.name, 0, asset.size, "lazy")
+            lazyLoadCount = lazyLoadCount + 1
+            completedDownloads = completedDownloads + 1
+            downloadedSize = downloadedSize + asset.size
+        else
+            loader.Update(0.15 + (i - 1) * 0.6 / #ASSETS, "Downloading " .. asset.name .. "...")
             
-            if status == "complete" or status == "cached" then
-                downloadedSize = downloadedSize + size
-                completedDownloads = completedDownloads + 1
-                local totalProgress = 0.15 + (downloadedSize / totalSize) * 0.6
-                loader.Update(totalProgress, "Downloaded " .. name)
-            end
-        end)
+            AssetDownloader:DownloadAsset(asset, function(name, progress, size, status)
+                loader.UpdateDownloadItem(name, progress, size, status)
+                
+                if status == "complete" or status == "cached" then
+                    downloadedSize = downloadedSize + size
+                    completedDownloads = completedDownloads + 1
+                    local totalProgress = 0.15 + (downloadedSize / totalSize) * 0.6
+                    loader.Update(totalProgress, "Downloaded " .. name)
+                end
+            end)
+        end
     end
     
-    loader.Update(0.8, "Waiting for all downloads...")
-    local maxWaitTime = 60
+    loader.Update(0.8, "Waiting for downloads...")
+    local maxWaitTime = 30
     local waitStartTime = tick()
     
-    while completedDownloads < (#ASSETS - 1) and (tick() - waitStartTime) < maxWaitTime do
+    while completedDownloads < #ASSETS and (tick() - waitStartTime) < maxWaitTime do
         task.wait(0.1)
     end
     
-    if completedDownloads < (#ASSETS - 1) then
-        loader.Update(0.85, "Some downloads incomplete, continuing...")
+    if lazyLoadCount > 0 then
+        loader.Update(0.85, string.format("%d files marked for lazy load", lazyLoadCount))
     else
         loader.Update(0.85, "All downloads complete!")
     end
     
     task.wait(0.5)
     
-    loader.Update(0.92, "Loading audio...")
+    loader.Update(0.92, "Initializing systems...")
     
+    -- Initialize music (lazy load)
     pcall(function()
         GUI.MusicSound = Instance.new("Sound")
         GUI.MusicSound.Name = "HohoMusic"
@@ -873,19 +1018,39 @@ function GUI.InitAssets()
         GUI.MusicSound.Volume = GUI.Config.MusicVolume
         GUI.MusicSound.Parent = SoundService
         
-        local musicPath = ASSETS_FOLDER .. "/sound.mp3"
-        if isfile and isfile(musicPath) then
-            AssetDownloader:LoadAsset(musicPath, GUI.MusicSound)
+        -- Lazy load music when needed
+        task.spawn(function()
+            task.wait(2) -- Wait for GUI to fully load
             
-            if isfile and isfile(MUSIC_TIME_FILE) and readfile then
-                local savedTime = tonumber(readfile(MUSIC_TIME_FILE))
-                if savedTime and savedTime > 0 then
-                    GUI.MusicSound.TimePosition = savedTime
+            local musicAsset = nil
+            for _, asset in ipairs(ASSETS) do
+                if asset.name == "sound.mp3" then
+                    musicAsset = asset
+                    break
                 end
             end
             
-            GUI.MusicSound:Play()
-        end
+            if musicAsset then
+                AssetDownloader:LazyLoadAsset(musicAsset, GUI.MusicSound, function(name, progress, size, status)
+                    print(string.format("[MUSIC] %s: %s", name, status))
+                end)
+                
+                -- Load saved position
+                local musicPath = ASSETS_FOLDER .. "/sound.mp3"
+                if isfile and isfile(musicPath) then
+                    if isfile and isfile(MUSIC_TIME_FILE) and readfile then
+                        local savedTime = tonumber(readfile(MUSIC_TIME_FILE))
+                        if savedTime and savedTime > 0 then
+                            GUI.MusicSound.TimePosition = savedTime
+                        end
+                    end
+                    
+                    if GUI.Config.MusicEnabled then
+                        GUI.MusicSound:Play()
+                    end
+                end
+            end
+        end)
     end)
     
     task.wait(0.5)
@@ -1109,7 +1274,7 @@ function GUI.CreateMainGUI()
     TitleLabel.ZIndex = GUI.ZLayers.Controls + 1
     TitleLabel.Parent = ControlsBar
     
-    -- LEFT PANEL - FIXED IMAGE LOADING
+    -- LEFT PANEL - FIXED IMAGE LOADING (PNG FILES)
     if leftPanelWidth > 0 then
         local LeftPanel = Instance.new("Frame")
         LeftPanel.Name = "LeftPanel"
@@ -1121,48 +1286,29 @@ function GUI.CreateMainGUI()
         LeftPanel.ZIndex = GUI.ZLayers.MainGUI
         LeftPanel.Parent = GUI.MainFrame
         
-        -- Try background.png (can be video), fallback to backlua.png
+        -- FIXED: Use background.png and backlua.png (proper naming)
         local bgPath = ASSETS_FOLDER .. "/background.png"
         local backluaPath = ASSETS_FOLDER .. "/backlua.png"
         local imageLoaded = false
         
-        -- Try as VideoFrame first for .webm support
+        -- Try background.png first
         if isfile and isfile(bgPath) then
-            local videoSuccess = pcall(function()
-                local BgVideo = Instance.new("VideoFrame")
-                BgVideo.Size = UDim2.new(1, 0, 1, 0)
-                BgVideo.BackgroundTransparency = 1
-                BgVideo.Looped = true
-                BgVideo.Volume = 0
-                BgVideo.ZIndex = GUI.ZLayers.MainGUI
-                BgVideo.Parent = LeftPanel
+            pcall(function()
+                local BgImage = Instance.new("ImageLabel")
+                BgImage.Size = UDim2.new(1, 0, 1, 0)
+                BgImage.BackgroundTransparency = 1
+                BgImage.ScaleType = Enum.ScaleType.Crop
+                BgImage.ZIndex = GUI.ZLayers.MainGUI
+                BgImage.Parent = LeftPanel
                 
-                local success = AssetDownloader:LoadAsset(bgPath, BgVideo)
+                local success = AssetDownloader:LoadAsset(bgPath, BgImage)
                 if success then
                     imageLoaded = true
+                    print("[GUI] ✅ Loaded background.png")
                 else
-                    BgVideo:Destroy()
+                    BgImage:Destroy()
                 end
             end)
-            
-            -- Try as ImageLabel if video failed
-            if not imageLoaded then
-                pcall(function()
-                    local BgImage = Instance.new("ImageLabel")
-                    BgImage.Size = UDim2.new(1, 0, 1, 0)
-                    BgImage.BackgroundTransparency = 1
-                    BgImage.ScaleType = Enum.ScaleType.Crop
-                    BgImage.ZIndex = GUI.ZLayers.MainGUI
-                    BgImage.Parent = LeftPanel
-                    
-                    local success = AssetDownloader:LoadAsset(bgPath, BgImage)
-                    if success then
-                        imageLoaded = true
-                    else
-                        BgImage:Destroy()
-                    end
-                end)
-            end
         end
         
         -- Fallback to backlua.png
@@ -1177,6 +1323,7 @@ function GUI.CreateMainGUI()
                 BackgroundImage.Parent = LeftPanel
                 
                 AssetDownloader:LoadAsset(backluaPath, BackgroundImage)
+                print("[GUI] ✅ Loaded backlua.png (fallback)")
             end)
         end
         
@@ -1251,7 +1398,7 @@ function GUI.CreateMainGUI()
         end))
     end
     
-    -- RIGHT PANEL - STATS
+    -- RIGHT PANEL - STATS (rest of GUI code continues...)
     local ContentPanel = Instance.new("Frame")
     ContentPanel.Name = "ContentPanel"
     ContentPanel.Size = UDim2.new(0, rightPanelWidth, 1, -controlBarHeight)
@@ -1498,7 +1645,7 @@ function GUI.CreateMainGUI()
 end
 
 -- ============================================
--- SERVER CHANGE SCREEN
+-- SERVER CHANGE SCREEN (LAZY LOAD CHANGE.WEBM)
 -- ============================================
 
 function GUI.ShowServerChangeScreen()
@@ -1521,10 +1668,23 @@ function GUI.ShowServerChangeScreen()
         VideoBg.ZIndex = GUI.ZLayers.ServerChange + 1
         VideoBg.Parent = Screen
         
-        local videoPath = ASSETS_FOLDER .. "/change.webm"
-        if isfile and isfile(videoPath) then
-            AssetDownloader:LoadAsset(videoPath, VideoBg)
-        end
+        -- LAZY LOAD change.webm
+        task.spawn(function()
+            local changeAsset = nil
+            for _, asset in ipairs(ASSETS) do
+                if asset.name == "change.webm" then
+                    changeAsset = asset
+                    break
+                end
+            end
+            
+            if changeAsset then
+                print("[GUI] 📥 Lazy loading change.webm...")
+                AssetDownloader:LazyLoadAsset(changeAsset, VideoBg, function(name, progress, size, status)
+                    print(string.format("[CHANGE.WEBM] %s: %s", name, status))
+                end)
+            end
+        end)
     end
     
     local Overlay = Instance.new("Frame")
@@ -1605,7 +1765,7 @@ function GUI.ShowServerChangeScreen()
 end
 
 -- ============================================
--- BOOST SCREEN
+-- BOOST SCREEN (LAZY LOAD BOOST.WEBM)
 -- ============================================
 
 function GUI.ShowBoostScreen()
@@ -1630,11 +1790,22 @@ function GUI.ShowBoostScreen()
     BoostVideo.ZIndex = GUI.ZLayers.ServerChange + 1
     BoostVideo.Parent = Screen
     
-    local videoPath = ASSETS_FOLDER .. "/boost.webm"
-    if isfile and isfile(videoPath) then
-        AssetDownloader:LoadAsset(videoPath, BoostVideo)
+    -- LAZY LOAD boost.webm
+    task.spawn(function()
+        local boostAsset = nil
+        for _, asset in ipairs(ASSETS) do
+            if asset.name == "boost.webm" then
+                boostAsset = asset
+                break
+            end
+        end
         
-        task.spawn(function()
+        if boostAsset then
+            print("[GUI] 📥 Lazy loading boost.webm...")
+            AssetDownloader:LazyLoadAsset(boostAsset, BoostVideo, function(name, progress, size, status)
+                print(string.format("[BOOST.WEBM] %s: %s", name, status))
+            end)
+            
             task.wait(5)
             if Screen and Screen.Parent then
                 Tween(Screen, {BackgroundTransparency = 1}, 0.5)
@@ -1642,8 +1813,8 @@ function GUI.ShowBoostScreen()
                 Screen:Destroy()
             end
             GUI._BoostScreen = nil
-        end)
-    end
+        end
+    end)
 end
 
 -- ============================================
