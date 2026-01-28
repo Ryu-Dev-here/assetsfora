@@ -50,10 +50,10 @@ GUI.Colors = {
 -- Configuration
 local WORKSPACE_FOLDER = "cuackerdoing"
 local MUSIC_FILENAME = "sound.mp3"
-local BG_FILENAME = "backlua.png"
-local CHANGE_BG_FILENAME = "change.gif"  -- Changed to GIF
-local BOOST_BG_FILENAME = "boost.gif"    -- Changed to GIF
-local FAST_MODE_GIF = "fastmode.gif"     -- New fast mode GIF
+local BG_FILENAME = "backlua.gif"
+local CHANGE_BG_FILENAME = "change.gif"  
+local BOOST_BG_FILENAME = "boost.gif"    
+local FAST_MODE_GIF = "fastmode.gif"    
 local TIME_FILENAME = "musictime.txt"
 local MUSIC_PATH = WORKSPACE_FOLDER .. "/" .. MUSIC_FILENAME
 local BG_PATH = WORKSPACE_FOLDER .. "/" .. BG_FILENAME
