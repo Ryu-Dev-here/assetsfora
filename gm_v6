@@ -1,7 +1,7 @@
 -- ============================================
--- HOHO'S BOUNTY REMAKE v8.0 - FINAL FIXED
+-- HOHO'S BOUNTY REMAKE v8.3 - ULTIMATE FIX
 -- By Ryu and Caucker - January 2026
--- Fixed: Lazy loading for 10MB+ files, proper PNG naming
+-- Fixed: Aggressive video loading, proper Play() calls, version tag in control bar
 -- ============================================
 
 local TweenService = game:GetService("TweenService")
@@ -77,7 +77,7 @@ local ASSETS = {
     -- Videos (WEBM files - LARGE, need lazy loading)
     {name = "boost.webm", type = "video", size = 16539000, priority = 3, isLarge = true, lazyLoad = true},
     {name = "change.webm", type = "video", size = 25266000, priority = 3, isLarge = true, lazyLoad = true},
-    {name = "loading.webm", type = "video", size = 3748000, priority = 1, isLarge = false},
+    {name = "loading.webm", type = "video", size = 3748000, priority = 1, isLarge = false, immediate = true},
     
     -- Audio (MP3 file - LARGE)
     {name = "sound.mp3", type = "audio", size = 7949000, priority = 2, isLarge = true, lazyLoad = true},
@@ -283,13 +283,13 @@ function Icons.Create(parent, iconType, size, color)
 end
 
 -- ============================================
--- CHUNKED DOWNLOAD SYSTEM FOR LARGE FILES
+-- AGGRESSIVE ASSET DOWNLOADER (v8.2 FIX)
 -- ============================================
 
 local AssetDownloader = {}
 
--- Download in chunks for large files
-function AssetDownloader:DownloadLargeAsset(asset, onProgress)
+-- Download with aggressive retries
+function AssetDownloader:DownloadAsset(asset, onProgress)
     return GUI.AddTask(task.spawn(function()
         pcall(function()
             if not game.HttpGet or not writefile then
@@ -312,8 +312,8 @@ function AssetDownloader:DownloadLargeAsset(asset, onProgress)
                 onProgress(asset.name, 0.1, asset.size, "downloading")
             end
             
-            -- For large files, download with retry
-            local maxRetries = 3
+            -- Aggressive download with retries
+            local maxRetries = 5
             local retryCount = 0
             local success = false
             local content = nil
@@ -323,14 +323,15 @@ function AssetDownloader:DownloadLargeAsset(asset, onProgress)
                     return game:HttpGet(ASSETS_REPO .. asset.name, true)
                 end)
                 
-                if downloadSuccess and downloadData then
+                if downloadSuccess and downloadData and type(downloadData) == "string" and #downloadData > 100 then
                     content = downloadData
                     success = true
+                    print(string.format("[ASSET] ✅ Downloaded: %s (%d bytes)", asset.name, #downloadData))
                 else
                     retryCount = retryCount + 1
                     if retryCount < maxRetries then
-                        warn(string.format("Download failed for %s, retry %d/%d", asset.name, retryCount, maxRetries))
-                        task.wait(2 * retryCount) -- Exponential backoff
+                        warn(string.format("[ASSET] ⚠️ Retry %d/%d for: %s", retryCount, maxRetries, asset.name))
+                        task.wait(2 * retryCount)
                     end
                 end
             end
@@ -339,7 +340,7 @@ function AssetDownloader:DownloadLargeAsset(asset, onProgress)
                 if onProgress then
                     onProgress(asset.name, 0, asset.size, "failed")
                 end
-                warn(string.format("Failed to download %s after %d retries", asset.name, maxRetries))
+                warn(string.format("[ASSET] ❌ Failed to download %s after %d retries", asset.name, maxRetries))
                 return
             end
             
@@ -353,72 +354,24 @@ function AssetDownloader:DownloadLargeAsset(asset, onProgress)
             end)
             
             if writeSuccess then
-                if onProgress then
-                    onProgress(asset.name, 1, asset.size, "complete")
-                end
-                task.wait(0.1)
-                return path
-            else
-                if onProgress then
-                    onProgress(asset.name, 0, asset.size, "failed")
-                end
-                warn(string.format("Failed to write %s to disk", asset.name))
-            end
-        end)
-    end))
-end
-
-function AssetDownloader:DownloadAsset(asset, onProgress)
-    -- Use chunked download for large files
-    if asset.isLarge then
-        return self:DownloadLargeAsset(asset, onProgress)
-    end
-    
-    return GUI.AddTask(task.spawn(function()
-        pcall(function()
-            if not game.HttpGet or not writefile then
-                if onProgress then onProgress(asset.name, 0, asset.size, "failed") end
-                return
-            end
-            
-            local path = ASSETS_FOLDER .. "/" .. asset.name
-            
-            -- Check if already exists
-            if isfile and isfile(path) then
-                if onProgress then
-                    onProgress(asset.name, 1, asset.size, "cached")
-                end
-                task.wait(0.1)
-                return path
-            end
-            
-            -- Download with progress
-            local success, data = pcall(function()
-                if onProgress then
-                    onProgress(asset.name, 0.1, asset.size, "downloading")
-                end
-                
-                local content = game:HttpGet(ASSETS_REPO .. asset.name, true)
-                
-                if onProgress then
-                    onProgress(asset.name, 0.8, asset.size, "writing")
-                end
-                
-                writefile(path, content)
-                
-                if onProgress then
-                    onProgress(asset.name, 1, asset.size, "complete")
-                end
-                
-                task.wait(0.1)
-                return path
-            end)
-            
-            if not success then
-                if onProgress then
-                    onProgress(asset.name, 0, asset.size, "failed")
+                -- Verify write
+                if isfile and isfile(path) then
+                    local verify = readfile(path)
+                    if #verify == #content then
+                        print(string.format("[ASSET] 💾 Saved and verified: %s", asset.name))
+                        if onProgress then
+                            onProgress(asset.name, 1, asset.size, "complete")
+                        end
+                        task.wait(0.1)
+                        return path
+                    end
                 end
             end
+            
+            if onProgress then
+                onProgress(asset.name, 0, asset.size, "failed")
+            end
+            warn(string.format("[ASSET] ❌ Failed to write %s to disk", asset.name))
         end)
     end))
 end
@@ -428,30 +381,48 @@ function AssetDownloader:LoadAsset(assetPath, targetObject)
         -- Try getcustomasset first (2026 standard)
         local assetFunc = getcustomasset or getsynasset
         if not assetFunc then
-            warn("Asset loading not supported - missing getcustomasset/getsynasset")
+            warn("[ASSET] ❌ Asset loading not supported - missing getcustomasset/getsynasset")
             return
         end
         
         if not isfile or not isfile(assetPath) then
-            warn("Asset file not found: " .. assetPath)
+            warn("[ASSET] ❌ Asset file not found: " .. assetPath)
             return
         end
         
         local assetUrl = assetFunc(assetPath)
+        print(string.format("[ASSET] 🔗 Generated URL for: %s", assetPath))
         
         if targetObject:IsA("ImageLabel") or targetObject:IsA("ImageButton") then
             targetObject.Image = assetUrl
+            print(string.format("[ASSET] 🖼️ Applied image"))
+            
         elseif targetObject:IsA("VideoFrame") then
             targetObject.Video = assetUrl
-            -- Try to play immediately
+            print(string.format("[ASSET] 🎬 Applied video"))
+            
+            -- AGGRESSIVE VIDEO PLAY (v8.2 FIX)
             task.spawn(function()
-                task.wait(0.2)
+                task.wait(0.3)
                 if targetObject and targetObject.Parent then
-                    targetObject:Play()
+                    local playSuccess = pcall(function()
+                        targetObject:Play()
+                        print(string.format("[ASSET] ▶️ Playing video"))
+                    end)
+                    if not playSuccess then
+                        -- Retry play after delay
+                        task.wait(0.5)
+                        pcall(function()
+                            targetObject:Play()
+                            print(string.format("[ASSET] ▶️ Retry play successful"))
+                        end)
+                    end
                 end
             end)
+            
         elseif targetObject:IsA("Sound") then
             targetObject.SoundId = assetUrl
+            print(string.format("[ASSET] 🔊 Applied sound"))
         end
         
         -- Mark as loaded
@@ -459,7 +430,7 @@ function AssetDownloader:LoadAsset(assetPath, targetObject)
     end)
     
     if not success then
-        warn("Failed to load asset: " .. assetPath)
+        warn("[ASSET] ❌ Failed to load asset: " .. assetPath)
     end
     
     return success
@@ -467,38 +438,43 @@ end
 
 -- Lazy load asset when needed
 function AssetDownloader:LazyLoadAsset(asset, targetObject, onProgress)
-    -- Check if already loaded
-    local path = ASSETS_FOLDER .. "/" .. asset.name
-    if GUI.LoadedAssets[path] then
-        return true
-    end
-    
-    -- Download if not cached
-    if not isfile or not isfile(path) then
-        self:DownloadAsset(asset, onProgress)
-        
-        -- Wait for download to complete
-        local maxWait = 30
-        local waited = 0
-        while waited < maxWait do
-            if isfile and isfile(path) then
-                break
-            end
-            task.wait(0.5)
-            waited = waited + 0.5
+    return GUI.AddTask(task.spawn(function()
+        -- Check if already loaded
+        local path = ASSETS_FOLDER .. "/" .. asset.name
+        if GUI.LoadedAssets[path] then
+            print(string.format("[ASSET] ✓ Already loaded: %s", asset.name))
+            return true
         end
-    end
-    
-    -- Load the asset
-    if isfile and isfile(path) then
-        return self:LoadAsset(path, targetObject)
-    end
-    
-    return false
+        
+        print(string.format("[ASSET] ⏳ Lazy loading: %s", asset.name))
+        
+        -- Download if not cached
+        if not isfile or not isfile(path) then
+            self:DownloadAsset(asset, onProgress)
+            
+            -- Wait for download to complete
+            local maxWait = 30
+            local waited = 0
+            while waited < maxWait do
+                if isfile and isfile(path) then
+                    break
+                end
+                task.wait(0.5)
+                waited = waited + 0.5
+            end
+        end
+        
+        -- Load the asset
+        if isfile and isfile(path) then
+            return self:LoadAsset(path, targetObject)
+        end
+        
+        return false
+    end))
 end
 
 -- ============================================
--- LOADING SCREEN WITH LOADING.WEBM
+-- LOADING SCREEN WITH AGGRESSIVE VIDEO LOADING
 -- ============================================
 
 function GUI.CreateAdvancedLoader()
@@ -513,7 +489,7 @@ function GUI.CreateAdvancedLoader()
     LoaderScreen.ZIndex = GUI.ZLayers.LoadingScreen
     LoaderScreen.Parent = GUI.SkibidiGui
     
-    -- LOADING.WEBM AS BACKGROUND
+    -- LOADING.WEBM AS BACKGROUND (AGGRESSIVE LOADING - v8.2 FIX)
     local LoadingVideo = Instance.new("VideoFrame")
     LoadingVideo.Size = UDim2.new(0.5, 0, 1, 0)
     LoadingVideo.Position = UDim2.new(0, 0, 0, 0)
@@ -522,6 +498,30 @@ function GUI.CreateAdvancedLoader()
     LoadingVideo.Volume = 0
     LoadingVideo.ZIndex = GUI.ZLayers.LoadingScreen
     LoadingVideo.Parent = LoaderScreen
+    
+    print("[ASSET] === PRIORITY: Loading loading.webm for loader screen ===")
+    
+    -- IMMEDIATELY start loading video
+    task.spawn(function()
+        local loadingAsset = nil
+        for _, asset in ipairs(ASSETS) do
+            if asset.name == "loading.webm" then
+                loadingAsset = asset
+                break
+            end
+        end
+        
+        if loadingAsset then
+            AssetDownloader:DownloadAsset(loadingAsset, function(name, progress, size, status)
+                print(string.format("[LOADING.WEBM] %s - %.0f%%", status, progress * 100))
+                
+                if (status == "complete" or status == "cached") then
+                    local path = ASSETS_FOLDER .. "/" .. name
+                    AssetDownloader:LoadAsset(path, LoadingVideo)
+                end
+            end)
+        end
+    end)
     
     local RightOverlay = Instance.new("Frame")
     RightOverlay.Size = UDim2.new(0.5, 0, 1, 0)
@@ -572,7 +572,7 @@ function GUI.CreateAdvancedLoader()
     
     local badgeSize = GetResponsiveValue(14, 11, 12)
     local VersionBadge = Instance.new("TextLabel")
-    VersionBadge.Text = "REMAKE v8.0 - By Ryu & Caucker"
+    VersionBadge.Text = "REMAKE v8.3 - By Ryu & Caucker"
     VersionBadge.Size = UDim2.new(1, 0, 0, badgeSize + 14)
     VersionBadge.Position = UDim2.new(0, 0, 0, logoSize + 26)
     VersionBadge.BackgroundTransparency = 1
@@ -641,6 +641,7 @@ function GUI.CreateAdvancedLoader()
     DetailsContainer.Size = UDim2.new(1, -40, 0, 140)
     DetailsContainer.Position = UDim2.new(0, 20, 0, detailsY)
     DetailsContainer.BackgroundTransparency = 1
+    DetailsContainer.BorderSizePixel = 0
     DetailsContainer.ScrollBarThickness = 4
     DetailsContainer.ScrollBarImageColor3 = GUI.Colors.Primary
     DetailsContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -790,7 +791,7 @@ function GUI.CreateAdvancedLoader()
 end
 
 -- ============================================
--- PERSISTENT STORAGE (MOVED FROM MAIN SCRIPT)
+-- PERSISTENT STORAGE
 -- ============================================
 
 local PersistentStorage = {}
@@ -907,11 +908,10 @@ end
 PersistentStorage:Init()
 GUI.PersistentData = PersistentStorage:Load()
 
--- Export for main script
 getgenv().HohosPersistentStorage = PersistentStorage
 
 -- ============================================
--- ASSET INITIALIZATION WITH LAZY LOADING
+-- ASSET INITIALIZATION
 -- ============================================
 
 function GUI.InitAssets()
@@ -922,8 +922,9 @@ function GUI.InitAssets()
     
     PersistentStorage:Init()
     
-    task.wait(0.3)
-    loader.Update(0.1, "Preparing downloads...")
+    task.wait(1) -- Give loading.webm time to start
+    
+    loader.Update(0.15, "Preparing downloads...")
     
     table.sort(ASSETS, function(a, b)
         return (a.priority or 99) < (b.priority or 99)
@@ -933,29 +934,10 @@ function GUI.InitAssets()
         loader.AddDownloadItem(asset.name)
     end
     
-    task.wait(0.2)
+    task.wait(0.3)
     
-    -- LOAD LOADING.WEBM FIRST (not lazy)
-    local loadingVideoPath = ASSETS_FOLDER .. "/loading.webm"
-    local loadingAsset = nil
-    for _, asset in ipairs(ASSETS) do
-        if asset.name == "loading.webm" then
-            loadingAsset = asset
-            break
-        end
-    end
-    
-    if loadingAsset then
-        loader.Update(0.12, "Loading background video...")
-        AssetDownloader:DownloadAsset(loadingAsset, function(name, progress, size, status)
-            loader.UpdateDownloadItem(name, progress, size, status)
-            
-            if (status == "complete" or status == "cached") and loader.LoadingVideo then
-                AssetDownloader:LoadAsset(loadingVideoPath, loader.LoadingVideo)
-            end
-        end)
-        task.wait(0.5)
-    end
+    -- Mark loading.webm as loading (already started)
+    loader.UpdateDownloadItem("loading.webm", 0.5, 0, "loading")
     
     local totalSize = 0
     local downloadedSize = 0
@@ -968,7 +950,13 @@ function GUI.InitAssets()
     
     -- Download non-lazy assets, mark lazy ones as pending
     for i, asset in ipairs(ASSETS) do
-        if asset.name == "loading.webm" then continue end
+        if asset.name == "loading.webm" then 
+            -- Already loading, mark as complete
+            loader.UpdateDownloadItem(asset.name, 1, asset.size, "cached")
+            completedDownloads = completedDownloads + 1
+            downloadedSize = downloadedSize + asset.size
+            continue 
+        end
         
         if asset.lazyLoad then
             -- Mark as lazy load (will download when needed)
@@ -1020,7 +1008,7 @@ function GUI.InitAssets()
         
         -- Lazy load music when needed
         task.spawn(function()
-            task.wait(2) -- Wait for GUI to fully load
+            task.wait(2)
             
             local musicAsset = nil
             for _, asset in ipairs(ASSETS) do
@@ -1085,7 +1073,7 @@ function GUI.SaveMusicState()
 end
 
 -- ============================================
--- MAIN GUI CREATION
+-- MAIN GUI CREATION (WITH VERSION IN CONTROL BAR)
 -- ============================================
 
 function GUI.CreateMainGUI()
@@ -1263,8 +1251,8 @@ function GUI.CreateMainGUI()
     
     local titleSize = GetResponsiveValue(13, 10, 11)
     local TitleLabel = Instance.new("TextLabel")
-    TitleLabel.Text = "HOHO'S BOUNTY REMAKE - Ryu & Caucker"
-    TitleLabel.Size = UDim2.new(1, -90, 1, 0)
+    TitleLabel.Text = "HOHO'S BOUNTY REMAKE"
+    TitleLabel.Size = UDim2.new(1, -220, 1, 0)
     TitleLabel.Position = UDim2.new(0, buttonStartX + (3 * buttonSpacing) + 8, 0, 0)
     TitleLabel.BackgroundTransparency = 1
     TitleLabel.Font = Enum.Font.GothamBold
@@ -1273,6 +1261,44 @@ function GUI.CreateMainGUI()
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     TitleLabel.ZIndex = GUI.ZLayers.Controls + 1
     TitleLabel.Parent = ControlsBar
+    
+    -- VERSION BADGE IN CONTROL BAR (v8.3 NEW FEATURE)
+    local versionBadgeWidth = GetResponsiveValue(110, 90, 100)
+    local versionBadgeHeight = GetResponsiveValue(24, 20, 22)
+    
+    local VersionBadge = Instance.new("Frame")
+    VersionBadge.Size = UDim2.new(0, versionBadgeWidth, 0, versionBadgeHeight)
+    VersionBadge.Position = UDim2.new(1, -versionBadgeWidth - 10, 0.5, -versionBadgeHeight/2)
+    VersionBadge.BackgroundColor3 = GUI.Colors.Primary
+    VersionBadge.BorderSizePixel = 0
+    VersionBadge.ZIndex = GUI.ZLayers.Controls + 1
+    VersionBadge.Parent = ControlsBar
+    
+    local VersionCorner = Instance.new("UICorner")
+    VersionCorner.CornerRadius = UDim.new(0, 6)
+    VersionCorner.Parent = VersionBadge
+    
+    local versionTextSize = GetResponsiveValue(11, 9, 10)
+    local VersionText = Instance.new("TextLabel")
+    VersionText.Text = "v8.3"
+    VersionText.Size = UDim2.new(1, 0, 1, 0)
+    VersionText.BackgroundTransparency = 1
+    VersionText.Font = Enum.Font.GothamBold
+    VersionText.TextColor3 = Color3.fromRGB(0, 0, 0)
+    VersionText.TextSize = versionTextSize
+    VersionText.ZIndex = GUI.ZLayers.Controls + 2
+    VersionText.Parent = VersionBadge
+    
+    -- Subtle glow animation for version badge
+    GUI.AddTask(task.spawn(function()
+        while VersionBadge and VersionBadge.Parent do
+            Tween(VersionBadge, {BackgroundColor3 = GUI.Colors.PrimaryGlow}, 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+            task.wait(2)
+            if not VersionBadge or not VersionBadge.Parent then break end
+            Tween(VersionBadge, {BackgroundColor3 = GUI.Colors.Primary}, 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+            task.wait(2)
+        end
+    end))
     
     -- LEFT PANEL - FIXED IMAGE LOADING (PNG FILES)
     if leftPanelWidth > 0 then
@@ -1286,7 +1312,6 @@ function GUI.CreateMainGUI()
         LeftPanel.ZIndex = GUI.ZLayers.MainGUI
         LeftPanel.Parent = GUI.MainFrame
         
-        -- FIXED: Use background.png and backlua.png (proper naming)
         local bgPath = ASSETS_FOLDER .. "/background.png"
         local backluaPath = ASSETS_FOLDER .. "/backlua.png"
         local imageLoaded = false
@@ -1361,44 +1386,34 @@ function GUI.CreateMainGUI()
         LeftLogo.ZIndex = GUI.ZLayers.MainGUI + 2
         LeftLogo.Parent = LeftPanel
         
-        local badgeWidth = GetResponsiveValue(110, 90, 100)
-        local badgeHeight = GetResponsiveValue(28, 24, 26)
-        local VersionBadge = Instance.new("Frame")
-        VersionBadge.Size = UDim2.new(0, badgeWidth, 0, badgeHeight)
-        VersionBadge.Position = UDim2.new(0, 8, 0, 8)
-        VersionBadge.BackgroundColor3 = GUI.Colors.Primary
-        VersionBadge.BackgroundTransparency = 0
-        VersionBadge.BorderSizePixel = 0
-        VersionBadge.ZIndex = GUI.ZLayers.MainGUI + 2
-        VersionBadge.Parent = LeftPanel
+        local authorWidth = GetResponsiveValue(140, 110, 125)
+        local authorHeight = GetResponsiveValue(20, 16, 18)
+        local AuthorBadge = Instance.new("Frame")
+        AuthorBadge.Size = UDim2.new(0, authorWidth, 0, authorHeight)
+        AuthorBadge.Position = UDim2.new(0, 8, 0, 8)
+        AuthorBadge.BackgroundColor3 = GUI.Colors.Surface
+        AuthorBadge.BackgroundTransparency = 0.3
+        AuthorBadge.BorderSizePixel = 0
+        AuthorBadge.ZIndex = GUI.ZLayers.MainGUI + 2
+        AuthorBadge.Parent = LeftPanel
         
-        local BadgeCorner = Instance.new("UICorner")
-        BadgeCorner.CornerRadius = UDim.new(0, 8)
-        BadgeCorner.Parent = VersionBadge
+        local AuthorCorner = Instance.new("UICorner")
+        AuthorCorner.CornerRadius = UDim.new(0, 6)
+        AuthorCorner.Parent = AuthorBadge
         
-        local badgeTextSize = GetResponsiveValue(12, 10, 11)
-        local BadgeText = Instance.new("TextLabel")
-        BadgeText.Text = "REMAKE v8.0"
-        BadgeText.Size = UDim2.new(1, 0, 1, 0)
-        BadgeText.BackgroundTransparency = 1
-        BadgeText.Font = Enum.Font.GothamBold
-        BadgeText.TextColor3 = Color3.fromRGB(0, 0, 0)
-        BadgeText.TextSize = badgeTextSize
-        BadgeText.ZIndex = GUI.ZLayers.MainGUI + 3
-        BadgeText.Parent = VersionBadge
-        
-        GUI.AddTask(task.spawn(function()
-            while VersionBadge and VersionBadge.Parent do
-                Tween(VersionBadge, {BackgroundColor3 = GUI.Colors.PrimaryGlow}, 1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-                task.wait(1.5)
-                if not VersionBadge or not VersionBadge.Parent then break end
-                Tween(VersionBadge, {BackgroundColor3 = GUI.Colors.Primary}, 1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-                task.wait(1.5)
-            end
-        end))
+        local authorTextSize = GetResponsiveValue(9, 7, 8)
+        local AuthorText = Instance.new("TextLabel")
+        AuthorText.Text = "By Ryu & Caucker"
+        AuthorText.Size = UDim2.new(1, 0, 1, 0)
+        AuthorText.BackgroundTransparency = 1
+        AuthorText.Font = Enum.Font.GothamMedium
+        AuthorText.TextColor3 = GUI.Colors.TextMuted
+        AuthorText.TextSize = authorTextSize
+        AuthorText.ZIndex = GUI.ZLayers.MainGUI + 3
+        AuthorText.Parent = AuthorBadge
     end
     
-    -- RIGHT PANEL - STATS (rest of GUI code continues...)
+    -- RIGHT PANEL - STATS
     local ContentPanel = Instance.new("Frame")
     ContentPanel.Name = "ContentPanel"
     ContentPanel.Size = UDim2.new(0, rightPanelWidth, 1, -controlBarHeight)
@@ -1879,6 +1894,6 @@ function GUI.Cleanup()
     GUI.MainFrame = nil
 end
 
-getgenv().HohosBountyRemake_v8 = GUI
+getgenv().HohosBountyRemake_v8_3 = GUI
 
 return GUI
