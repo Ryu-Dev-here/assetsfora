@@ -614,7 +614,7 @@ function GUI.CreateFullScreenLoader()
     
     local subtitleSize = GetResponsiveValue(18, 12, 15)
     local Subtitle = Instance.new("TextLabel")
-    Subtitle.Text = "AUTOMATION SYSTEM v6.1"
+    Subtitle.Text = "HOHO - Bounty Beta (Probably)"
     Subtitle.Size = UDim2.new(1, 0, 0, subtitleSize + 12)
     Subtitle.Position = UDim2.new(0, 0, 0, logoSize + 24)
     Subtitle.BackgroundTransparency = 1
@@ -1181,7 +1181,7 @@ function GUI.CreateMainGUI()
     local headerTitleSize = GetResponsiveValue(24, 15, 20)
     local headerPadding = GetResponsiveValue(35, 12, 25)
     local HeaderTitle = Instance.new("TextLabel")
-    HeaderTitle.Text = GUI.IsMobile and "PANEL" or "AUTOMATION PANEL"
+    HeaderTitle.Text = GUI.IsMobile and "Bounty - HOHO (BETA-PROBABLY)" or "Bounty - HOHO (Beta-PROBABLY)"
     HeaderTitle.Size = UDim2.new(1, -headerPadding - 10, 0, headerTitleSize + 16)
     HeaderTitle.Position = UDim2.new(0, headerPadding, 0, (headerHeight - headerTitleSize - 16) / 2)
     HeaderTitle.BackgroundTransparency = 1
