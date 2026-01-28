@@ -1046,24 +1046,33 @@ function GUI.CreateMainGUI()
         end
     end
     
-    -- Responsive dimensions
-    local panelWidth, panelHeight
+    -- Responsive dimensions - DUAL PANEL
+    local mainWidth, mainHeight, leftPanelWidth, rightPanelWidth
     
     if GUI.IsMobile then
-        panelWidth = math.min(GUI.ScreenSize.X * 0.9, 360)
-        panelHeight = math.min(GUI.ScreenSize.Y * 0.8, 580)
+        -- Mobile: Single column (hide image panel)
+        mainWidth = math.min(GUI.ScreenSize.X * 0.95, 380)
+        mainHeight = math.min(GUI.ScreenSize.Y * 0.85, 620)
+        leftPanelWidth = 0
+        rightPanelWidth = mainWidth
     elseif GUI.IsTablet then
-        panelWidth = 400
-        panelHeight = 640
+        -- Tablet: Compact dual panel
+        mainWidth = math.min(GUI.ScreenSize.X * 0.9, 800)
+        mainHeight = math.min(GUI.ScreenSize.Y * 0.8, 550)
+        leftPanelWidth = math.floor(mainWidth * 0.35)
+        rightPanelWidth = mainWidth - leftPanelWidth
     else
-        panelWidth = 440
-        panelHeight = 700
+        -- Desktop: Full dual panel experience
+        mainWidth = 1000
+        mainHeight = 600
+        leftPanelWidth = 450
+        rightPanelWidth = 550
     end
     
-    local cornerRadius = GetResponsiveValue(20, 16, 18)
-    local controlBarHeight = GetResponsiveValue(48, 40, 44)
+    local cornerRadius = GetResponsiveValue(18, 14, 16)
+    local controlBarHeight = GetResponsiveValue(45, 38, 42)
     
-    -- Video Background Layer
+    -- Video Background Layer (Fullscreen behind everything)
     if GUI.Config.VideoBackgrounds then
         GUI.VideoBackground = Instance.new("VideoFrame")
         GUI.VideoBackground.Size = UDim2.new(1, 0, 1, 0)
@@ -1084,19 +1093,19 @@ function GUI.CreateMainGUI()
         local Overlay = Instance.new("Frame")
         Overlay.Size = UDim2.new(1, 0, 1, 0)
         Overlay.BackgroundColor3 = GUI.Colors.Overlay
-        Overlay.BackgroundTransparency = 0.4
+        Overlay.BackgroundTransparency = 0.5
         Overlay.BorderSizePixel = 0
         Overlay.ZIndex = GUI.ZLayers.VideoBackground + 1
         Overlay.Parent = GUI.SkibidiGui
     end
     
-    -- Main GUI Frame
+    -- Main GUI Frame (DUAL PANEL)
     GUI.MainFrame = Instance.new("Frame")
     GUI.MainFrame.Name = "MainFrame"
     GUI.MainFrame.BackgroundColor3 = GUI.Colors.Background
-    GUI.MainFrame.BackgroundTransparency = 0.1
-    GUI.MainFrame.Position = UDim2.new(0, 20, 0.5, -panelHeight/2)
-    GUI.MainFrame.Size = UDim2.new(0, 0, 0, panelHeight)
+    GUI.MainFrame.BackgroundTransparency = 0
+    GUI.MainFrame.Position = UDim2.new(0.5, -mainWidth/2, 0.5, -mainHeight/2)
+    GUI.MainFrame.Size = UDim2.new(0, 0, 0, 0)
     GUI.MainFrame.BorderSizePixel = 0
     GUI.MainFrame.ClipsDescendants = true
     GUI.MainFrame.ZIndex = GUI.ZLayers.MainGUI
@@ -1223,14 +1232,14 @@ function GUI.CreateMainGUI()
         if GUI.IsMinimized then
             Tween(GUI.MainFrame, {Size = UDim2.new(0, minWidth, 0, controlBarHeight)}, 0.4, Enum.EasingStyle.Quart)
         else
-            Tween(GUI.MainFrame, {Size = UDim2.new(0, panelWidth, 0, panelHeight)}, 0.4, Enum.EasingStyle.Quart)
+            Tween(GUI.MainFrame, {Size = UDim2.new(0, mainWidth, 0, mainHeight)}, 0.4, Enum.EasingStyle.Quart)
         end
     end)
     
     -- Title
     local titleSize = GetResponsiveValue(15, 11, 13)
     local TitleLabel = Instance.new("TextLabel")
-    TitleLabel.Text = "SKIBIDI v8.0"
+    TitleLabel.Text = "SKIBIDI v8.0 ULTIMATE"
     TitleLabel.Size = UDim2.new(1, -120, 1, 0)
     TitleLabel.Position = UDim2.new(0, buttonStartX + (3 * buttonSpacing) + 10, 0, 0)
     TitleLabel.BackgroundTransparency = 1
@@ -1241,14 +1250,122 @@ function GUI.CreateMainGUI()
     TitleLabel.ZIndex = GUI.ZLayers.Controls + 1
     TitleLabel.Parent = ControlsBar
     
-    -- Content Area
-    local ContentArea = Instance.new("Frame")
-    ContentArea.Size = UDim2.new(1, 0, 1, -controlBarHeight)
-    ContentArea.Position = UDim2.new(0, 0, 0, controlBarHeight)
-    ContentArea.BackgroundTransparency = 1
-    ContentArea.BorderSizePixel = 0
-    ContentArea.ZIndex = GUI.ZLayers.MainGUI
-    ContentArea.Parent = GUI.MainFrame
+    -- ============================================
+    -- LEFT PANEL - IMAGE DISPLAY (Hidden on mobile)
+    -- ============================================
+    
+    if leftPanelWidth > 0 then
+        local LeftPanel = Instance.new("Frame")
+        LeftPanel.Name = "LeftPanel"
+        LeftPanel.Size = UDim2.new(0, leftPanelWidth, 1, -controlBarHeight)
+        LeftPanel.Position = UDim2.new(0, 0, 0, controlBarHeight)
+        LeftPanel.BackgroundTransparency = 1
+        LeftPanel.BorderSizePixel = 0
+        LeftPanel.ClipsDescendants = true
+        LeftPanel.ZIndex = GUI.ZLayers.MainGUI
+        LeftPanel.Parent = GUI.MainFrame
+        
+        -- Background Image
+        local BackgroundImage = Instance.new("ImageLabel")
+        BackgroundImage.Size = UDim2.new(1, 0, 1, 0)
+        BackgroundImage.BackgroundTransparency = 1
+        BackgroundImage.ScaleType = Enum.ScaleType.Crop
+        BackgroundImage.ImageTransparency = 0
+        BackgroundImage.ZIndex = GUI.ZLayers.MainGUI
+        BackgroundImage.Parent = LeftPanel
+        
+        -- Load image
+        local imagePath = ASSETS_FOLDER .. "/backlua.png"
+        if isfile and isfile(imagePath) then
+            AssetDownloader:LoadAsset(imagePath, BackgroundImage)
+        end
+        
+        -- Gradient overlay for depth
+        local ImageOverlay = Instance.new("Frame")
+        ImageOverlay.Size = UDim2.new(1, 0, 1, 0)
+        ImageOverlay.BackgroundColor3 = GUI.Colors.Overlay
+        ImageOverlay.BackgroundTransparency = 0.3
+        ImageOverlay.BorderSizePixel = 0
+        ImageOverlay.ZIndex = GUI.ZLayers.MainGUI + 1
+        ImageOverlay.Parent = LeftPanel
+        
+        local OverlayGradient = Instance.new("UIGradient")
+        OverlayGradient.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+            ColorSequenceKeypoint.new(1, GUI.Colors.Background)
+        }
+        OverlayGradient.Rotation = 90
+        OverlayGradient.Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0, 0.4),
+            NumberSequenceKeypoint.new(1, 0)
+        }
+        OverlayGradient.Parent = ImageOverlay
+        
+        -- Logo at bottom
+        local logoSize = GetResponsiveValue(52, 38, 45)
+        local LeftLogo = Instance.new("TextLabel")
+        LeftLogo.Text = "SKIBIDI"
+        LeftLogo.Size = UDim2.new(1, -20, 0, logoSize + 20)
+        LeftLogo.Position = UDim2.new(0, 10, 1, -(logoSize + 30))
+        LeftLogo.BackgroundTransparency = 1
+        LeftLogo.Font = Enum.Font.GothamBold
+        LeftLogo.TextColor3 = GUI.Colors.Text
+        LeftLogo.TextSize = logoSize
+        LeftLogo.TextXAlignment = Enum.TextXAlignment.Left
+        LeftLogo.ZIndex = GUI.ZLayers.MainGUI + 2
+        LeftLogo.Parent = LeftPanel
+        
+        -- Version badge
+        local badgeWidth = GetResponsiveValue(90, 70, 80)
+        local badgeHeight = GetResponsiveValue(36, 28, 32)
+        local VersionBadge = Instance.new("Frame")
+        VersionBadge.Size = UDim2.new(0, badgeWidth, 0, badgeHeight)
+        VersionBadge.Position = UDim2.new(0, 10, 0, 10)
+        VersionBadge.BackgroundColor3 = GUI.Colors.Primary
+        VersionBadge.BackgroundTransparency = 0
+        VersionBadge.BorderSizePixel = 0
+        VersionBadge.ZIndex = GUI.ZLayers.MainGUI + 2
+        VersionBadge.Parent = LeftPanel
+        
+        local BadgeCorner = Instance.new("UICorner")
+        BadgeCorner.CornerRadius = UDim.new(0, 10)
+        BadgeCorner.Parent = VersionBadge
+        
+        local badgeTextSize = GetResponsiveValue(16, 12, 14)
+        local BadgeText = Instance.new("TextLabel")
+        BadgeText.Text = "v8.0"
+        BadgeText.Size = UDim2.new(1, 0, 1, 0)
+        BadgeText.BackgroundTransparency = 1
+        BadgeText.Font = Enum.Font.GothamBold
+        BadgeText.TextColor3 = Color3.fromRGB(0, 0, 0)
+        BadgeText.TextSize = badgeTextSize
+        BadgeText.ZIndex = GUI.ZLayers.MainGUI + 3
+        BadgeText.Parent = VersionBadge
+        
+        -- Pulse effect on badge
+        GUI.AddTask(task.spawn(function()
+            while VersionBadge and VersionBadge.Parent do
+                Tween(VersionBadge, {BackgroundColor3 = GUI.Colors.PrimaryGlow}, 1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+                task.wait(1.5)
+                if not VersionBadge or not VersionBadge.Parent then break end
+                Tween(VersionBadge, {BackgroundColor3 = GUI.Colors.Primary}, 1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+                task.wait(1.5)
+            end
+        end))
+    end
+    
+    -- ============================================
+    -- RIGHT PANEL - STATS (Main content area)
+    -- ============================================
+    
+    local RightPanel = Instance.new("Frame")
+    RightPanel.Name = "RightPanel"
+    RightPanel.Size = UDim2.new(0, rightPanelWidth, 1, -controlBarHeight)
+    RightPanel.Position = UDim2.new(0, leftPanelWidth, 0, controlBarHeight)
+    RightPanel.BackgroundColor3 = GUI.IsMobile and GUI.Colors.Background or GUI.Colors.Surface
+    RightPanel.BorderSizePixel = 0
+    RightPanel.ZIndex = GUI.ZLayers.MainGUI
+    RightPanel.Parent = GUI.MainFrame
     
     -- Header
     local headerHeight = GetResponsiveValue(100, 80, 90)
@@ -1256,10 +1373,10 @@ function GUI.CreateMainGUI()
     Header.Size = UDim2.new(1, 0, 0, headerHeight)
     Header.BackgroundTransparency = 1
     Header.ZIndex = GUI.ZLayers.MainGUI
-    Header.Parent = ContentArea
+    Header.Parent = RightPanel
     
-    local headerTitleSize = GetResponsiveValue(28, 20, 24)
-    local headerPadding = GetResponsiveValue(30, 20, 25)
+    local headerTitleSize = GetResponsiveValue(26, 18, 22)
+    local headerPadding = GetResponsiveValue(30, 18, 24)
     
     local HeaderTitle = Instance.new("TextLabel")
     HeaderTitle.Text = "CONTROL PANEL"
@@ -1273,7 +1390,7 @@ function GUI.CreateMainGUI()
     HeaderTitle.ZIndex = GUI.ZLayers.MainGUI + 1
     HeaderTitle.Parent = Header
     
-    local subtitleSize = GetResponsiveValue(13, 10, 11)
+    local subtitleSize = GetResponsiveValue(12, 9, 10)
     local Subtitle = Instance.new("TextLabel")
     Subtitle.Text = "Ultimate Edition • Persistent Storage"
     Subtitle.Size = UDim2.new(1, -headerPadding * 2, 0, subtitleSize + 8)
@@ -1287,7 +1404,7 @@ function GUI.CreateMainGUI()
     Subtitle.Parent = Header
     
     -- Stats Container
-    local statsPadding = GetResponsiveValue(30, 20, 25)
+    local statsPadding = GetResponsiveValue(30, 18, 24)
     local statsTop = headerHeight + 10
     
     local StatsContainer = Instance.new("ScrollingFrame")
@@ -1300,7 +1417,7 @@ function GUI.CreateMainGUI()
     StatsContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
     StatsContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
     StatsContainer.ZIndex = GUI.ZLayers.MainGUI
-    StatsContainer.Parent = ContentArea
+    StatsContainer.Parent = RightPanel
     
     local StatsLayout = Instance.new("UIListLayout")
     StatsLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -1465,8 +1582,8 @@ function GUI.CreateMainGUI()
     end)
     GUI.AddConnection(inputChangedConnection)
     
-    -- Entrance animation
-    Tween(GUI.MainFrame, {Size = UDim2.new(0, panelWidth, 0, panelHeight)}, 0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    -- Entrance animation with dual panel
+    Tween(GUI.MainFrame, {Size = UDim2.new(0, mainWidth, 0, mainHeight)}, 0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
     
     -- Initialize assets
     task.spawn(function()
