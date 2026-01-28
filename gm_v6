@@ -1,6 +1,6 @@
 -- ============================================
--- ULTIMATE SKIBIDI GUI v6.0 - MOBILE RESPONSIVE
--- Auto-detects device and adjusts layout
+-- ULTIMATE SKIBIDI GUI v6.1 - MOBILE RESPONSIVE [IMPROVED]
+-- Fixed z-index layering, left-aligned screens, enhanced icons
 -- Perfect sync with func.lua
 -- ============================================
 
@@ -29,6 +29,18 @@ GUI.IsPaused = false
 GUI.IsMobile = false
 GUI.IsTablet = false
 GUI.ScreenSize = Vector2.new(0, 0)
+
+-- Z-INDEX LAYERS (CRITICAL FOR PROPER LAYERING)
+GUI.ZLayers = {
+    Background = 1,
+    BackgroundImage = 2,
+    MainGUI = 100,
+    Controls = 200,
+    BoostOverlay = 5000,      -- BOOST IMAGE BELOW GUI
+    MainGUIContent = 10000,    -- GUI ALWAYS ON TOP
+    LoadingScreen = 15000,
+    ServerChange = 20000
+}
 
 -- Vibrant color palette
 GUI.Colors = {
@@ -160,7 +172,7 @@ local function Tween(object, properties, duration, style, direction, callback)
 end
 
 -- ============================================
--- ICON SYSTEM (same as before, works on all devices)
+-- ENHANCED ICON SYSTEM
 -- ============================================
 
 local Icons = {}
@@ -179,25 +191,45 @@ function Icons.Create(parent, iconType, size, color)
     color = color or GUI.Colors.Primary
     
     if iconType == "target" then
+        -- Crosshair target with enhanced design
         local circle = Instance.new("Frame")
-        circle.Size = UDim2.new(0.7, 0, 0.7, 0)
-        circle.Position = UDim2.new(0.15, 0, 0.15, 0)
+        circle.Size = UDim2.new(0.75, 0, 0.75, 0)
+        circle.Position = UDim2.new(0.125, 0, 0.125, 0)
         circle.BackgroundTransparency = 1
         circle.BorderSizePixel = 0
         circle.Parent = canvas
         
         local outerRing = Instance.new("UIStroke")
         outerRing.Color = color
-        outerRing.Thickness = 2.5
+        outerRing.Thickness = 3
         outerRing.Parent = circle
         
         local corner = Instance.new("UICorner")
         corner.CornerRadius = UDim.new(1, 0)
         corner.Parent = circle
         
+        -- Inner ring
+        local innerCircle = Instance.new("Frame")
+        innerCircle.Size = UDim2.new(0.45, 0, 0.45, 0)
+        innerCircle.Position = UDim2.new(0.275, 0, 0.275, 0)
+        innerCircle.BackgroundTransparency = 1
+        innerCircle.BorderSizePixel = 0
+        innerCircle.Parent = canvas
+        
+        local innerRing = Instance.new("UIStroke")
+        innerRing.Color = color
+        innerRing.Thickness = 2
+        innerRing.Transparency = 0.4
+        innerRing.Parent = innerCircle
+        
+        local innerCorner = Instance.new("UICorner")
+        innerCorner.CornerRadius = UDim.new(1, 0)
+        innerCorner.Parent = innerCircle
+        
+        -- Center dot
         local dot = Instance.new("Frame")
-        dot.Size = UDim2.new(0.2, 0, 0.2, 0)
-        dot.Position = UDim2.new(0.4, 0, 0.4, 0)
+        dot.Size = UDim2.new(0.18, 0, 0.18, 0)
+        dot.Position = UDim2.new(0.41, 0, 0.41, 0)
         dot.BackgroundColor3 = color
         dot.BorderSizePixel = 0
         dot.Parent = canvas
@@ -206,13 +238,36 @@ function Icons.Create(parent, iconType, size, color)
         dotCorner.CornerRadius = UDim.new(1, 0)
         dotCorner.Parent = dot
         
+        -- Crosshair lines
+        for i = 0, 3 do
+            local line = Instance.new("Frame")
+            line.Size = UDim2.new(0, 2, 0.12, 0)
+            line.Position = UDim2.new(0.5, -1, 0.5, 0)
+            line.AnchorPoint = Vector2.new(0.5, 0.5)
+            line.BackgroundColor3 = color
+            line.BorderSizePixel = 0
+            line.Rotation = i * 90
+            line.Parent = canvas
+            
+            local lineCorner = Instance.new("UICorner")
+            lineCorner.CornerRadius = UDim.new(1, 0)
+            lineCorner.Parent = line
+            
+            -- Position lines outside the circle
+            if i == 0 then line.Position = UDim2.new(0.5, -1, 0.12, 0)
+            elseif i == 1 then line.Position = UDim2.new(0.88, -1, 0.5, 0)
+            elseif i == 2 then line.Position = UDim2.new(0.5, -1, 0.88, 0)
+            else line.Position = UDim2.new(0.12, -1, 0.5, 0) end
+        end
+        
     elseif iconType == "status" then
-        local positions = {0.15, 0.425, 0.7}
-        local heights = {0.45, 0.7, 0.55}
+        -- Signal bars with enhanced spacing
+        local positions = {0.12, 0.415, 0.71}
+        local heights = {0.42, 0.68, 0.52}
         
         for i = 1, 3 do
             local bar = Instance.new("Frame")
-            bar.Size = UDim2.new(0.18, 0, heights[i], 0)
+            bar.Size = UDim2.new(0.16, 0, heights[i], 0)
             bar.Position = UDim2.new(positions[i], 0, 0.5, 0)
             bar.AnchorPoint = Vector2.new(0, 0.5)
             bar.BackgroundColor3 = color
@@ -220,58 +275,109 @@ function Icons.Create(parent, iconType, size, color)
             bar.Parent = canvas
             
             local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(0.35, 0)
+            corner.CornerRadius = UDim.new(0.3, 0)
             corner.Parent = bar
+            
+            -- Add glow effect
+            local glow = Instance.new("UIStroke")
+            glow.Color = color
+            glow.Thickness = 1
+            glow.Transparency = 0.7
+            glow.Parent = bar
         end
         
     elseif iconType == "bounty" then
+        -- Enhanced diamond/gem icon
         local top = Instance.new("Frame")
-        top.Size = UDim2.new(0.55, 0, 0.3, 0)
-        top.Position = UDim2.new(0.225, 0, 0.18, 0)
+        top.Size = UDim2.new(0.5, 0, 0.32, 0)
+        top.Position = UDim2.new(0.25, 0, 0.15, 0)
         top.BackgroundColor3 = color
         top.BorderSizePixel = 0
         top.Rotation = 45
         top.Parent = canvas
         
+        local topGlow = Instance.new("UIStroke")
+        topGlow.Color = color
+        topGlow.Thickness = 1.5
+        topGlow.Transparency = 0.6
+        topGlow.Parent = top
+        
         local bottom = Instance.new("Frame")
-        bottom.Size = UDim2.new(0.55, 0, 0.4, 0)
-        bottom.Position = UDim2.new(0.225, 0, 0.48, 0)
+        bottom.Size = UDim2.new(0.5, 0, 0.42, 0)
+        bottom.Position = UDim2.new(0.25, 0, 0.45, 0)
         bottom.BackgroundColor3 = color
         bottom.BorderSizePixel = 0
         bottom.Rotation = 45
         bottom.Parent = canvas
         
+        local bottomGlow = Instance.new("UIStroke")
+        bottomGlow.Color = color
+        bottomGlow.Thickness = 1.5
+        bottomGlow.Transparency = 0.6
+        bottomGlow.Parent = bottom
+        
+        -- Add shine effect
+        local shine = Instance.new("Frame")
+        shine.Size = UDim2.new(0.15, 0, 0.25, 0)
+        shine.Position = UDim2.new(0.35, 0, 0.25, 0)
+        shine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        shine.BackgroundTransparency = 0.5
+        shine.BorderSizePixel = 0
+        shine.Rotation = 45
+        shine.Parent = canvas
+        
     elseif iconType == "time" then
+        -- Enhanced clock with tick marks
         local circle = Instance.new("Frame")
-        circle.Size = UDim2.new(0.88, 0, 0.88, 0)
-        circle.Position = UDim2.new(0.06, 0, 0.06, 0)
+        circle.Size = UDim2.new(0.9, 0, 0.9, 0)
+        circle.Position = UDim2.new(0.05, 0, 0.05, 0)
         circle.BackgroundTransparency = 1
         circle.BorderSizePixel = 0
         circle.Parent = canvas
         
         local stroke = Instance.new("UIStroke")
         stroke.Color = color
-        stroke.Thickness = 2.5
+        stroke.Thickness = 3
         stroke.Parent = circle
         
         local corner = Instance.new("UICorner")
         corner.CornerRadius = UDim.new(1, 0)
         corner.Parent = circle
         
+        -- Tick marks
+        for i = 0, 11 do
+            local tick = Instance.new("Frame")
+            tick.Size = UDim2.new(0, 2, 0.08, 0)
+            tick.Position = UDim2.new(0.5, -1, 0.08, 0)
+            tick.AnchorPoint = Vector2.new(0.5, 0)
+            tick.BackgroundColor3 = color
+            tick.BackgroundTransparency = i % 3 == 0 and 0 or 0.5
+            tick.BorderSizePixel = 0
+            tick.Parent = circle
+            
+            tick.Rotation = i * 30
+            
+            local tickCorner = Instance.new("UICorner")
+            tickCorner.CornerRadius = UDim.new(1, 0)
+            tickCorner.Parent = tick
+        end
+        
+        -- Hour hand
         local hourHand = Instance.new("Frame")
-        hourHand.Size = UDim2.new(0, 2.5, 0.28, 0)
-        hourHand.Position = UDim2.new(0.5, -1.25, 0.5, 0)
+        hourHand.Size = UDim2.new(0, 3, 0.3, 0)
+        hourHand.Position = UDim2.new(0.5, -1.5, 0.5, 0)
         hourHand.AnchorPoint = Vector2.new(0.5, 1)
         hourHand.BackgroundColor3 = color
         hourHand.BorderSizePixel = 0
         hourHand.Parent = canvas
         
-        local corner1 = Instance.new("UICorner")
-        corner1.CornerRadius = UDim.new(1, 0)
-        corner1.Parent = hourHand
+        local hourCorner = Instance.new("UICorner")
+        hourCorner.CornerRadius = UDim.new(1, 0)
+        hourCorner.Parent = hourHand
         
+        -- Minute hand
         local minuteHand = Instance.new("Frame")
-        minuteHand.Size = UDim2.new(0, 2.5, 0.38, 0)
+        minuteHand.Size = UDim2.new(0, 2.5, 0.42, 0)
         minuteHand.Position = UDim2.new(0.5, -1.25, 0.5, 0)
         minuteHand.AnchorPoint = Vector2.new(0.5, 1)
         minuteHand.BackgroundColor3 = color
@@ -279,37 +385,53 @@ function Icons.Create(parent, iconType, size, color)
         minuteHand.Rotation = 90
         minuteHand.Parent = canvas
         
-        local corner2 = Instance.new("UICorner")
-        corner2.CornerRadius = UDim.new(1, 0)
-        corner2.Parent = minuteHand
+        local minuteCorner = Instance.new("UICorner")
+        minuteCorner.CornerRadius = UDim.new(1, 0)
+        minuteCorner.Parent = minuteHand
+        
+        -- Center dot
+        local centerDot = Instance.new("Frame")
+        centerDot.Size = UDim2.new(0.12, 0, 0.12, 0)
+        centerDot.Position = UDim2.new(0.44, 0, 0.44, 0)
+        centerDot.BackgroundColor3 = color
+        centerDot.BorderSizePixel = 0
+        centerDot.ZIndex = 10
+        centerDot.Parent = canvas
+        
+        local dotCorner = Instance.new("UICorner")
+        dotCorner.CornerRadius = UDim.new(1, 0)
+        dotCorner.Parent = centerDot
         
     elseif iconType == "skull" then
+        -- Enhanced skull with better proportions
         local head = Instance.new("Frame")
-        head.Size = UDim2.new(0.65, 0, 0.55, 0)
-        head.Position = UDim2.new(0.175, 0, 0.13, 0)
+        head.Size = UDim2.new(0.68, 0, 0.58, 0)
+        head.Position = UDim2.new(0.16, 0, 0.12, 0)
         head.BackgroundColor3 = color
         head.BorderSizePixel = 0
         head.Parent = canvas
         
         local headCorner = Instance.new("UICorner")
-        headCorner.CornerRadius = UDim.new(0.32, 0)
+        headCorner.CornerRadius = UDim.new(0.35, 0)
         headCorner.Parent = head
         
+        -- Jaw
         local jaw = Instance.new("Frame")
-        jaw.Size = UDim2.new(0.5, 0, 0.28, 0)
-        jaw.Position = UDim2.new(0.25, 0, 0.58, 0)
+        jaw.Size = UDim2.new(0.52, 0, 0.3, 0)
+        jaw.Position = UDim2.new(0.24, 0, 0.58, 0)
         jaw.BackgroundColor3 = color
         jaw.BorderSizePixel = 0
         jaw.Parent = canvas
         
         local jawCorner = Instance.new("UICorner")
-        jawCorner.CornerRadius = UDim.new(0, 5)
+        jawCorner.CornerRadius = UDim.new(0, 6)
         jawCorner.Parent = jaw
         
+        -- Eyes with glow
         for i = 1, 2 do
             local eye = Instance.new("Frame")
-            eye.Size = UDim2.new(0.14, 0, 0.14, 0)
-            eye.Position = UDim2.new(0.28 + (i-1) * 0.28, 0, 0.33, 0)
+            eye.Size = UDim2.new(0.15, 0, 0.15, 0)
+            eye.Position = UDim2.new(0.26 + (i-1) * 0.3, 0, 0.32, 0)
             eye.BackgroundColor3 = GUI.Colors.Background
             eye.BorderSizePixel = 0
             eye.Parent = canvas
@@ -317,24 +439,56 @@ function Icons.Create(parent, iconType, size, color)
             local eyeCorner = Instance.new("UICorner")
             eyeCorner.CornerRadius = UDim.new(1, 0)
             eyeCorner.Parent = eye
+            
+            local eyeGlow = Instance.new("UIStroke")
+            eyeGlow.Color = color
+            eyeGlow.Thickness = 1
+            eyeGlow.Transparency = 0.5
+            eyeGlow.Parent = eye
         end
         
+        -- Nose
+        local nose = Instance.new("Frame")
+        nose.Size = UDim2.new(0.1, 0, 0.1, 0)
+        nose.Position = UDim2.new(0.45, 0, 0.52, 0)
+        nose.BackgroundColor3 = GUI.Colors.Background
+        nose.BorderSizePixel = 0
+        nose.Rotation = 45
+        nose.Parent = canvas
+        
     elseif iconType == "zap" then
+        -- Enhanced lightning bolt
         local bolt = Instance.new("Frame")
-        bolt.Size = UDim2.new(0.45, 0, 0.75, 0)
-        bolt.Position = UDim2.new(0.275, 0, 0.125, 0)
+        bolt.Size = UDim2.new(0.48, 0, 0.78, 0)
+        bolt.Position = UDim2.new(0.26, 0, 0.11, 0)
         bolt.BackgroundColor3 = color
         bolt.BorderSizePixel = 0
         bolt.Rotation = 18
         bolt.Parent = canvas
         
+        -- Glow effect
+        local glow = Instance.new("UIStroke")
+        glow.Color = color
+        glow.Thickness = 2
+        glow.Transparency = 0.5
+        glow.Parent = bolt
+        
+        -- Cut to create zigzag
         local leftCut = Instance.new("Frame")
-        leftCut.Size = UDim2.new(0.3, 0, 0.3, 0)
-        leftCut.Position = UDim2.new(-0.1, 0, 0.35, 0)
+        leftCut.Size = UDim2.new(0.32, 0, 0.32, 0)
+        leftCut.Position = UDim2.new(-0.12, 0, 0.34, 0)
         leftCut.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
         leftCut.BorderSizePixel = 0
         leftCut.Rotation = 45
         leftCut.Parent = bolt
+        
+        local rightCut = Instance.new("Frame")
+        rightCut.Size = UDim2.new(0.32, 0, 0.32, 0)
+        rightCut.Position = UDim2.new(0.8, 0, 0.34, 0)
+        rightCut.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        rightCut.BorderSizePixel = 0
+        rightCut.Rotation = 45
+        rightCut.Parent = bolt
     end
     
     return frame
@@ -401,7 +555,7 @@ function GUI.SaveMusicState()
 end
 
 -- ============================================
--- RESPONSIVE LOADING SCREEN
+-- RESPONSIVE LOADING SCREEN (LEFT ALIGNED)
 -- ============================================
 
 function GUI.CreateFullScreenLoader()
@@ -410,7 +564,7 @@ function GUI.CreateFullScreenLoader()
     LoaderScreen.Size = UDim2.new(1, 0, 1, 0)
     LoaderScreen.BackgroundColor3 = GUI.Colors.Background
     LoaderScreen.BorderSizePixel = 0
-    LoaderScreen.ZIndex = 10000
+    LoaderScreen.ZIndex = GUI.ZLayers.LoadingScreen
     LoaderScreen.Parent = GUI.SkibidiGui
     
     local Bg = Instance.new("ImageLabel")
@@ -418,7 +572,7 @@ function GUI.CreateFullScreenLoader()
     Bg.BackgroundTransparency = 1
     Bg.ImageTransparency = 0.4
     Bg.ScaleType = Enum.ScaleType.Crop
-    Bg.ZIndex = 10001
+    Bg.ZIndex = GUI.ZLayers.LoadingScreen + 1
     Bg.Parent = LoaderScreen
     
     LoadImageFromGitHub(LOADING_BG_FILENAME, Bg, function()
@@ -430,20 +584,22 @@ function GUI.CreateFullScreenLoader()
     Overlay.BackgroundColor3 = GUI.Colors.Overlay
     Overlay.BackgroundTransparency = 0.2
     Overlay.BorderSizePixel = 0
-    Overlay.ZIndex = 10002
+    Overlay.ZIndex = GUI.ZLayers.LoadingScreen + 2
     Overlay.Parent = LoaderScreen
     
-    local containerWidth = GetResponsiveValue(550, 300, 450)
-    local containerHeight = GetResponsiveValue(320, 240, 280)
+    -- LEFT ALIGNED CONTAINER
+    local containerWidth = GetResponsiveValue(550, 320, 450)
+    local containerHeight = GetResponsiveValue(320, 260, 290)
+    local leftMargin = GetResponsiveValue(80, 20, 50)
     
     local Container = Instance.new("Frame")
     Container.Size = UDim2.new(0, containerWidth, 0, containerHeight)
-    Container.Position = UDim2.new(0.5, -containerWidth/2, 0.5, -containerHeight/2)
+    Container.Position = UDim2.new(0, leftMargin, 0.5, -containerHeight/2)
     Container.BackgroundTransparency = 1
-    Container.ZIndex = 10003
+    Container.ZIndex = GUI.ZLayers.LoadingScreen + 3
     Container.Parent = LoaderScreen
     
-    local logoSize = GetResponsiveValue(64, 38, 52)
+    local logoSize = GetResponsiveValue(68, 42, 56)
     local LogoText = Instance.new("TextLabel")
     LogoText.Text = "SKIBIDI"
     LogoText.Size = UDim2.new(1, 0, 0, logoSize + 16)
@@ -452,30 +608,32 @@ function GUI.CreateFullScreenLoader()
     LogoText.TextColor3 = GUI.Colors.Text
     LogoText.TextSize = logoSize
     LogoText.TextTransparency = 1
-    LogoText.ZIndex = 10004
+    LogoText.TextXAlignment = Enum.TextXAlignment.Left
+    LogoText.ZIndex = GUI.ZLayers.LoadingScreen + 4
     LogoText.Parent = Container
     
-    local subtitleSize = GetResponsiveValue(16, 11, 14)
+    local subtitleSize = GetResponsiveValue(18, 12, 15)
     local Subtitle = Instance.new("TextLabel")
-    Subtitle.Text = "AUTOMATION SYSTEM v6.0"
+    Subtitle.Text = "AUTOMATION SYSTEM v6.1"
     Subtitle.Size = UDim2.new(1, 0, 0, subtitleSize + 12)
-    Subtitle.Position = UDim2.new(0, 0, 0, logoSize + 21)
+    Subtitle.Position = UDim2.new(0, 0, 0, logoSize + 24)
     Subtitle.BackgroundTransparency = 1
     Subtitle.Font = Enum.Font.GothamMedium
     Subtitle.TextColor3 = GUI.Colors.Primary
     Subtitle.TextSize = subtitleSize
     Subtitle.TextTransparency = 1
-    Subtitle.ZIndex = 10004
+    Subtitle.TextXAlignment = Enum.TextXAlignment.Left
+    Subtitle.ZIndex = GUI.ZLayers.LoadingScreen + 4
     Subtitle.Parent = Container
     
-    local progressY = GetResponsiveValue(160, 110, 140)
+    local progressY = GetResponsiveValue(170, 120, 150)
     local ProgressContainer = Instance.new("Frame")
-    ProgressContainer.Size = UDim2.new(1, 0, 0, 4)
+    ProgressContainer.Size = UDim2.new(1, 0, 0, 5)
     ProgressContainer.Position = UDim2.new(0, 0, 0, progressY)
     ProgressContainer.BackgroundColor3 = GUI.Colors.Surface
     ProgressContainer.BorderSizePixel = 0
     ProgressContainer.BackgroundTransparency = 1
-    ProgressContainer.ZIndex = 10004
+    ProgressContainer.ZIndex = GUI.ZLayers.LoadingScreen + 4
     ProgressContainer.Parent = Container
     
     local ProgressCorner = Instance.new("UICorner")
@@ -486,7 +644,7 @@ function GUI.CreateFullScreenLoader()
     ProgressBar.Size = UDim2.new(0, 0, 1, 0)
     ProgressBar.BackgroundColor3 = GUI.Colors.Primary
     ProgressBar.BorderSizePixel = 0
-    ProgressBar.ZIndex = 10005
+    ProgressBar.ZIndex = GUI.ZLayers.LoadingScreen + 5
     ProgressBar.Parent = ProgressContainer
     
     local BarCorner = Instance.new("UICorner")
@@ -499,37 +657,39 @@ function GUI.CreateFullScreenLoader()
     Glow.BackgroundColor3 = GUI.Colors.Primary
     Glow.BackgroundTransparency = 0.5
     Glow.BorderSizePixel = 0
-    Glow.ZIndex = 10004
+    Glow.ZIndex = GUI.ZLayers.LoadingScreen + 4
     Glow.Parent = ProgressBar
     
     local GlowCorner = Instance.new("UICorner")
     GlowCorner.CornerRadius = UDim.new(1, 0)
     GlowCorner.Parent = Glow
     
-    local statusSize = GetResponsiveValue(14, 10, 12)
+    local statusSize = GetResponsiveValue(15, 11, 13)
     local StatusText = Instance.new("TextLabel")
     StatusText.Text = "Initializing..."
     StatusText.Size = UDim2.new(1, 0, 0, statusSize + 8)
-    StatusText.Position = UDim2.new(0, 0, 0, progressY + 25)
+    StatusText.Position = UDim2.new(0, 0, 0, progressY + 28)
     StatusText.BackgroundTransparency = 1
     StatusText.Font = Enum.Font.Gotham
     StatusText.TextColor3 = GUI.Colors.TextMuted
     StatusText.TextSize = statusSize
     StatusText.TextTransparency = 1
-    StatusText.ZIndex = 10004
+    StatusText.TextXAlignment = Enum.TextXAlignment.Left
+    StatusText.ZIndex = GUI.ZLayers.LoadingScreen + 4
     StatusText.Parent = Container
     
-    local percentSize = GetResponsiveValue(38, 24, 30)
+    local percentSize = GetResponsiveValue(42, 28, 34)
     local PercentText = Instance.new("TextLabel")
     PercentText.Text = "0%"
     PercentText.Size = UDim2.new(1, 0, 0, percentSize + 10)
-    PercentText.Position = UDim2.new(0, 0, 0, progressY + 55)
+    PercentText.Position = UDim2.new(0, 0, 0, progressY + 60)
     PercentText.BackgroundTransparency = 1
     PercentText.Font = Enum.Font.GothamBold
     PercentText.TextColor3 = GUI.Colors.Primary
     PercentText.TextSize = percentSize
     PercentText.TextTransparency = 1
-    PercentText.ZIndex = 10004
+    PercentText.TextXAlignment = Enum.TextXAlignment.Left
+    PercentText.ZIndex = GUI.ZLayers.LoadingScreen + 4
     PercentText.Parent = Container
     
     Tween(LogoText, {TextTransparency = 0}, 1)
@@ -699,7 +859,7 @@ function GUI.InitAssets()
 end
 
 -- ============================================
--- MAIN GUI - FULLY RESPONSIVE
+-- MAIN GUI - FULLY RESPONSIVE (PROPER Z-INDEX)
 -- ============================================
 
 function GUI.CreateMainGUI()
@@ -764,7 +924,7 @@ function GUI.CreateMainGUI()
     local controlBarHeight = GetResponsiveValue(40, 35, 38)
     local cornerRadius = GetResponsiveValue(16, 12, 14)
     
-    -- Main container
+    -- Main container with PROPER Z-INDEX
     GUI.MainFrame = Instance.new("Frame")
     GUI.MainFrame.Name = "MainFrame"
     GUI.MainFrame.BackgroundColor3 = GUI.Colors.Background
@@ -772,6 +932,7 @@ function GUI.CreateMainGUI()
     GUI.MainFrame.Size = UDim2.new(0, 0, 0, 0)
     GUI.MainFrame.BorderSizePixel = 0
     GUI.MainFrame.ClipsDescendants = true
+    GUI.MainFrame.ZIndex = GUI.ZLayers.MainGUI
     GUI.MainFrame.Parent = GUI.SkibidiGui
     
     local MainCorner = Instance.new("UICorner")
@@ -785,7 +946,7 @@ function GUI.CreateMainGUI()
     MainStroke.Parent = GUI.MainFrame
     
     -- ============================================
-    -- macOS CONTROLS (responsive)
+    -- macOS CONTROLS (HIGHEST Z-INDEX IN GUI)
     -- ============================================
     
     local ControlsBar = Instance.new("Frame")
@@ -793,7 +954,7 @@ function GUI.CreateMainGUI()
     ControlsBar.Size = UDim2.new(1, 0, 0, controlBarHeight)
     ControlsBar.BackgroundColor3 = GUI.Colors.Surface
     ControlsBar.BorderSizePixel = 0
-    ControlsBar.ZIndex = 100
+    ControlsBar.ZIndex = GUI.ZLayers.MainGUIContent + 100
     ControlsBar.Parent = GUI.MainFrame
     
     local ControlsCorner = Instance.new("UICorner")
@@ -805,7 +966,7 @@ function GUI.CreateMainGUI()
     ControlsMask.Position = UDim2.new(0, 0, 1, -(cornerRadius + 5))
     ControlsMask.BackgroundColor3 = GUI.Colors.Surface
     ControlsMask.BorderSizePixel = 0
-    ControlsMask.ZIndex = 100
+    ControlsMask.ZIndex = GUI.ZLayers.MainGUIContent + 100
     ControlsMask.Parent = ControlsBar
     
     local buttonSize = GetResponsiveValue(13, 11, 12)
@@ -820,7 +981,7 @@ function GUI.CreateMainGUI()
         btn.BorderSizePixel = 0
         btn.Text = ""
         btn.AutoButtonColor = false
-        btn.ZIndex = 101
+        btn.ZIndex = GUI.ZLayers.MainGUIContent + 101
         btn.Parent = ControlsBar
         
         local corner = Instance.new("UICorner")
@@ -896,7 +1057,7 @@ function GUI.CreateMainGUI()
     -- Title
     local titleSize = GetResponsiveValue(13, 10, 11)
     local TitleLabel = Instance.new("TextLabel")
-    TitleLabel.Text = GUI.IsMobile and "SKIBIDI" or "SKIBIDI v6.0"
+    TitleLabel.Text = GUI.IsMobile and "SKIBIDI" or "SKIBIDI v6.1"
     TitleLabel.Size = UDim2.new(1, -100, 1, 0)
     TitleLabel.Position = UDim2.new(0, buttonStartX + (3 * buttonSpacing), 0, 0)
     TitleLabel.BackgroundTransparency = 1
@@ -904,11 +1065,11 @@ function GUI.CreateMainGUI()
     TitleLabel.TextSize = titleSize
     TitleLabel.TextColor3 = GUI.Colors.Text
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    TitleLabel.ZIndex = 101
+    TitleLabel.ZIndex = GUI.ZLayers.MainGUIContent + 101
     TitleLabel.Parent = ControlsBar
     
     -- ============================================
-    -- LEFT PANEL (hidden on mobile)
+    -- LEFT PANEL (hidden on mobile) - BACKGROUND IMAGE LAYER
     -- ============================================
     
     if leftPanelWidth > 0 then
@@ -919,6 +1080,7 @@ function GUI.CreateMainGUI()
         LeftPanel.BackgroundTransparency = 1
         LeftPanel.BorderSizePixel = 0
         LeftPanel.ClipsDescendants = true
+        LeftPanel.ZIndex = GUI.ZLayers.BackgroundImage
         LeftPanel.Parent = GUI.MainFrame
         
         GUI.BackgroundImage = Instance.new("ImageLabel")
@@ -926,7 +1088,7 @@ function GUI.CreateMainGUI()
         GUI.BackgroundImage.BackgroundTransparency = 1
         GUI.BackgroundImage.ScaleType = Enum.ScaleType.Crop
         GUI.BackgroundImage.ImageTransparency = 0
-        GUI.BackgroundImage.ZIndex = 1
+        GUI.BackgroundImage.ZIndex = GUI.ZLayers.BackgroundImage
         GUI.BackgroundImage.Parent = LeftPanel
         
         local ImageOverlay = Instance.new("Frame")
@@ -934,7 +1096,7 @@ function GUI.CreateMainGUI()
         ImageOverlay.BackgroundColor3 = GUI.Colors.Overlay
         ImageOverlay.BackgroundTransparency = 0.25
         ImageOverlay.BorderSizePixel = 0
-        ImageOverlay.ZIndex = 2
+        ImageOverlay.ZIndex = GUI.ZLayers.BackgroundImage + 1
         ImageOverlay.Parent = LeftPanel
         
         local OverlayGradient = Instance.new("UIGradient")
@@ -959,44 +1121,45 @@ function GUI.CreateMainGUI()
         LeftLogo.TextColor3 = GUI.Colors.Text
         LeftLogo.TextSize = logoSize
         LeftLogo.TextXAlignment = Enum.TextXAlignment.Left
-        LeftLogo.ZIndex = 3
+        LeftLogo.ZIndex = GUI.ZLayers.BackgroundImage + 2
         LeftLogo.Parent = LeftPanel
         
-        local badgeWidth = GetResponsiveValue(75, 60, 68)
-        local badgeHeight = GetResponsiveValue(32, 26, 28)
+        local badgeWidth = GetResponsiveValue(80, 60, 70)
+        local badgeHeight = GetResponsiveValue(34, 26, 30)
         local VersionBadge = Instance.new("Frame")
         VersionBadge.Size = UDim2.new(0, badgeWidth, 0, badgeHeight)
         VersionBadge.Position = UDim2.new(0, 10, 0, 10)
         VersionBadge.BackgroundColor3 = GUI.Colors.Primary
         VersionBadge.BackgroundTransparency = 0
         VersionBadge.BorderSizePixel = 0
-        VersionBadge.ZIndex = 3
+        VersionBadge.ZIndex = GUI.ZLayers.BackgroundImage + 2
         VersionBadge.Parent = LeftPanel
         
         local BadgeCorner = Instance.new("UICorner")
         BadgeCorner.CornerRadius = UDim.new(0, 8)
         BadgeCorner.Parent = VersionBadge
         
-        local badgeTextSize = GetResponsiveValue(15, 12, 13)
+        local badgeTextSize = GetResponsiveValue(16, 12, 14)
         local BadgeText = Instance.new("TextLabel")
-        BadgeText.Text = "v6.0"
+        BadgeText.Text = "v6.1"
         BadgeText.Size = UDim2.new(1, 0, 1, 0)
         BadgeText.BackgroundTransparency = 1
         BadgeText.Font = Enum.Font.GothamBold
         BadgeText.TextColor3 = Color3.fromRGB(0, 0, 0)
         BadgeText.TextSize = badgeTextSize
-        BadgeText.ZIndex = 4
+        BadgeText.ZIndex = GUI.ZLayers.BackgroundImage + 3
         BadgeText.Parent = VersionBadge
     else
         -- Mobile: Hidden image (for asset loading)
         GUI.BackgroundImage = Instance.new("ImageLabel")
         GUI.BackgroundImage.Size = UDim2.new(0, 0, 0, 0)
         GUI.BackgroundImage.Visible = false
+        GUI.BackgroundImage.ZIndex = GUI.ZLayers.BackgroundImage
         GUI.BackgroundImage.Parent = GUI.MainFrame
     end
     
     -- ============================================
-    -- RIGHT PANEL - Stats (responsive)
+    -- RIGHT PANEL - Stats (MAIN GUI CONTENT LAYER)
     -- ============================================
     
     local RightPanel = Instance.new("Frame")
@@ -1005,12 +1168,14 @@ function GUI.CreateMainGUI()
     RightPanel.Position = UDim2.new(0, leftPanelWidth, 0, controlBarHeight)
     RightPanel.BackgroundColor3 = GUI.IsMobile and GUI.Colors.Background or GUI.Colors.Surface
     RightPanel.BorderSizePixel = 0
+    RightPanel.ZIndex = GUI.ZLayers.MainGUIContent
     RightPanel.Parent = GUI.MainFrame
     
     local headerHeight = GetResponsiveValue(90, 60, 75)
     local Header = Instance.new("Frame")
     Header.Size = UDim2.new(1, 0, 0, headerHeight)
     Header.BackgroundTransparency = 1
+    Header.ZIndex = GUI.ZLayers.MainGUIContent
     Header.Parent = RightPanel
     
     local headerTitleSize = GetResponsiveValue(24, 15, 20)
@@ -1024,6 +1189,7 @@ function GUI.CreateMainGUI()
     HeaderTitle.TextColor3 = GUI.Colors.Text
     HeaderTitle.TextSize = headerTitleSize
     HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+    HeaderTitle.ZIndex = GUI.ZLayers.MainGUIContent + 1
     HeaderTitle.Parent = Header
     
     -- Fast mode toggle
@@ -1043,6 +1209,7 @@ function GUI.CreateMainGUI()
     FastModeBtn.Text = GUI.IsMobile and "" or "  FAST"
     FastModeBtn.TextXAlignment = Enum.TextXAlignment.Left
     FastModeBtn.AutoButtonColor = false
+    FastModeBtn.ZIndex = GUI.ZLayers.MainGUIContent + 2
     FastModeBtn.Parent = Header
     
     local FastBtnCorner = Instance.new("UICorner")
@@ -1059,12 +1226,14 @@ function GUI.CreateMainGUI()
     local iconX = GetResponsiveValue(15, fastBtnWidth/2 - iconSize/2, 10)
     local FastIcon = Icons.Create(FastModeBtn, "zap", iconSize, GUI.Colors.TextMuted)
     FastIcon.Position = UDim2.new(0, iconX, 0.5, -iconSize/2)
+    FastIcon.ZIndex = GUI.ZLayers.MainGUIContent + 3
     
     local FastIndicator = Instance.new("Frame")
     FastIndicator.Size = UDim2.new(0, 7, 0, 7)
     FastIndicator.Position = UDim2.new(1, -12, 0.5, -3.5)
     FastIndicator.BackgroundColor3 = GUI.Colors.TextMuted
     FastIndicator.BorderSizePixel = 0
+    FastIndicator.ZIndex = GUI.ZLayers.MainGUIContent + 3
     FastIndicator.Parent = FastModeBtn
     
     local FastIndCorner = Instance.new("UICorner")
@@ -1083,6 +1252,7 @@ function GUI.CreateMainGUI()
             FastIcon:Destroy()
             FastIcon = Icons.Create(FastModeBtn, "zap", iconSize, Color3.fromRGB(0, 0, 0))
             FastIcon.Position = UDim2.new(0, iconX, 0.5, -iconSize/2)
+            FastIcon.ZIndex = GUI.ZLayers.MainGUIContent + 3
             
             GUI.SetBoostFPS(true)
             print("[GUI] ⚡ FAST MODE ON")
@@ -1094,6 +1264,7 @@ function GUI.CreateMainGUI()
             FastIcon:Destroy()
             FastIcon = Icons.Create(FastModeBtn, "zap", iconSize, GUI.Colors.TextMuted)
             FastIcon.Position = UDim2.new(0, iconX, 0.5, -iconSize/2)
+            FastIcon.ZIndex = GUI.ZLayers.MainGUIContent + 3
             
             GUI.SetBoostFPS(false)
             print("[GUI] Fast mode OFF")
@@ -1113,6 +1284,7 @@ function GUI.CreateMainGUI()
     StatsContainer.ScrollBarImageColor3 = GUI.Colors.Primary
     StatsContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
     StatsContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    StatsContainer.ZIndex = GUI.ZLayers.MainGUIContent
     StatsContainer.Parent = RightPanel
     
     local StatsLayout = Instance.new("UIListLayout")
@@ -1120,7 +1292,7 @@ function GUI.CreateMainGUI()
     StatsLayout.Padding = UDim.new(0, GetResponsiveValue(18, 8, 12))
     StatsLayout.Parent = StatsContainer
     
-    -- Stat cards (responsive)
+    -- Stat cards (responsive with proper z-index)
     local function CreateStatCard(label, value, iconType, order)
         local cardHeight = GetResponsiveValue(85, 60, 72)
         local Card = Instance.new("Frame")
@@ -1128,6 +1300,7 @@ function GUI.CreateMainGUI()
         Card.BackgroundColor3 = GUI.Colors.SurfaceLight
         Card.BorderSizePixel = 0
         Card.LayoutOrder = order
+        Card.ZIndex = GUI.ZLayers.MainGUIContent + 1
         Card.Parent = StatsContainer
         
         local CardCorner = Instance.new("UICorner")
@@ -1147,6 +1320,7 @@ function GUI.CreateMainGUI()
         IconContainer.Position = UDim2.new(0, iconContainerX, 0.5, -iconContainerSize/2)
         IconContainer.BackgroundColor3 = GUI.Colors.Surface
         IconContainer.BorderSizePixel = 0
+        IconContainer.ZIndex = GUI.ZLayers.MainGUIContent + 2
         IconContainer.Parent = Card
         
         local IconCorner = Instance.new("UICorner")
@@ -1162,6 +1336,7 @@ function GUI.CreateMainGUI()
         local iconSize = GetResponsiveValue(30, 20, 25)
         local Icon = Icons.Create(IconContainer, iconType, iconSize, GUI.Colors.Primary)
         Icon.Position = UDim2.new(0.5, -iconSize/2, 0.5, -iconSize/2)
+        Icon.ZIndex = GUI.ZLayers.MainGUIContent + 3
         
         local labelX = iconContainerX + iconContainerSize + GetResponsiveValue(17, 10, 13)
         local labelSize = GetResponsiveValue(12, 8, 10)
@@ -1174,6 +1349,7 @@ function GUI.CreateMainGUI()
         Label.TextSize = labelSize
         Label.TextColor3 = GUI.Colors.TextMuted
         Label.TextXAlignment = Enum.TextXAlignment.Left
+        Label.ZIndex = GUI.ZLayers.MainGUIContent + 2
         Label.Parent = Card
         
         local valueSize = GetResponsiveValue(26, 16, 20)
@@ -1187,6 +1363,7 @@ function GUI.CreateMainGUI()
         Value.TextColor3 = GUI.Colors.Text
         Value.TextXAlignment = Enum.TextXAlignment.Left
         Value.TextTruncate = Enum.TextTruncate.AtEnd
+        Value.ZIndex = GUI.ZLayers.MainGUIContent + 2
         Value.Parent = Card
         
         local hoverConnection = Card.MouseEnter:Connect(function()
@@ -1297,7 +1474,7 @@ function GUI.CreateMainGUI()
 end
 
 -- ============================================
--- SERVER CHANGE SCREEN
+-- SERVER CHANGE SCREEN (LEFT ALIGNED)
 -- ============================================
 
 function GUI.ShowServerChangeScreen()
@@ -1308,7 +1485,7 @@ function GUI.ShowServerChangeScreen()
     Screen.Size = UDim2.new(1, 0, 1, 0)
     Screen.BackgroundColor3 = GUI.Colors.Background
     Screen.BackgroundTransparency = 0
-    Screen.ZIndex = 20000
+    Screen.ZIndex = GUI.ZLayers.ServerChange
     Screen.Parent = GUI.SkibidiGui
     
     local Bg = Instance.new("ImageLabel")
@@ -1316,7 +1493,7 @@ function GUI.ShowServerChangeScreen()
     Bg.BackgroundTransparency = 1
     Bg.ScaleType = Enum.ScaleType.Crop
     Bg.ImageTransparency = 0.5
-    Bg.ZIndex = 20001
+    Bg.ZIndex = GUI.ZLayers.ServerChange + 1
     Bg.Parent = Screen
     
     LoadImageFromGitHub(CHANGE_BG_FILENAME, Bg, function()
@@ -1328,20 +1505,22 @@ function GUI.ShowServerChangeScreen()
     Overlay.BackgroundColor3 = GUI.Colors.Overlay
     Overlay.BackgroundTransparency = 0.15
     Overlay.BorderSizePixel = 0
-    Overlay.ZIndex = 20002
+    Overlay.ZIndex = GUI.ZLayers.ServerChange + 2
     Overlay.Parent = Screen
     
-    local containerWidth = GetResponsiveValue(550, 300, 450)
-    local containerHeight = GetResponsiveValue(220, 180, 200)
+    -- LEFT ALIGNED CONTAINER
+    local containerWidth = GetResponsiveValue(550, 320, 450)
+    local containerHeight = GetResponsiveValue(240, 200, 220)
+    local leftMargin = GetResponsiveValue(80, 20, 50)
     
     local Container = Instance.new("Frame")
     Container.Size = UDim2.new(0, containerWidth, 0, containerHeight)
-    Container.Position = UDim2.new(0.5, -containerWidth/2, 0.5, -containerHeight/2)
+    Container.Position = UDim2.new(0, leftMargin, 0.5, -containerHeight/2)
     Container.BackgroundTransparency = 1
-    Container.ZIndex = 20003
+    Container.ZIndex = GUI.ZLayers.ServerChange + 3
     Container.Parent = Screen
     
-    local titleSize = GetResponsiveValue(48, 32, 40)
+    local titleSize = GetResponsiveValue(52, 34, 44)
     local Title = Instance.new("TextLabel")
     Title.Text = "CHANGING SERVER"
     Title.Size = UDim2.new(1, 0, 0, titleSize + 22)
@@ -1350,30 +1529,32 @@ function GUI.ShowServerChangeScreen()
     Title.TextSize = titleSize
     Title.TextColor3 = GUI.Colors.Text
     Title.TextTransparency = 1
-    Title.ZIndex = 20004
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.ZIndex = GUI.ZLayers.ServerChange + 4
     Title.Parent = Container
     
-    local subtitleSize = GetResponsiveValue(18, 13, 16)
+    local subtitleSize = GetResponsiveValue(20, 14, 17)
     local Subtitle = Instance.new("TextLabel")
-    Subtitle.Text = "Finding server..."
+    Subtitle.Text = "Finding optimal server..."
     Subtitle.Size = UDim2.new(1, 0, 0, subtitleSize + 14)
-    Subtitle.Position = UDim2.new(0, 0, 0, titleSize + 30)
+    Subtitle.Position = UDim2.new(0, 0, 0, titleSize + 32)
     Subtitle.BackgroundTransparency = 1
     Subtitle.Font = Enum.Font.Gotham
     Subtitle.TextSize = subtitleSize
     Subtitle.TextColor3 = GUI.Colors.Primary
     Subtitle.TextTransparency = 1
-    Subtitle.ZIndex = 20004
+    Subtitle.TextXAlignment = Enum.TextXAlignment.Left
+    Subtitle.ZIndex = GUI.ZLayers.ServerChange + 4
     Subtitle.Parent = Container
     
-    local progressY = GetResponsiveValue(145, 110, 128)
+    local progressY = GetResponsiveValue(160, 125, 145)
     local ProgressBg = Instance.new("Frame")
-    ProgressBg.Size = UDim2.new(1, 0, 0, 5)
+    ProgressBg.Size = UDim2.new(1, 0, 0, 6)
     ProgressBg.Position = UDim2.new(0, 0, 0, progressY)
     ProgressBg.BackgroundColor3 = GUI.Colors.Surface
     ProgressBg.BorderSizePixel = 0
     ProgressBg.BackgroundTransparency = 1
-    ProgressBg.ZIndex = 20004
+    ProgressBg.ZIndex = GUI.ZLayers.ServerChange + 4
     ProgressBg.Parent = Container
     
     local ProgressCorner = Instance.new("UICorner")
@@ -1384,12 +1565,25 @@ function GUI.ShowServerChangeScreen()
     Progress.Size = UDim2.new(0, 0, 1, 0)
     Progress.BackgroundColor3 = GUI.Colors.Primary
     Progress.BorderSizePixel = 0
-    Progress.ZIndex = 20005
+    Progress.ZIndex = GUI.ZLayers.ServerChange + 5
     Progress.Parent = ProgressBg
     
     local ProgressCorner2 = Instance.new("UICorner")
     ProgressCorner2.CornerRadius = UDim.new(1, 0)
     ProgressCorner2.Parent = Progress
+    
+    local ProgressGlow = Instance.new("Frame")
+    ProgressGlow.Size = UDim2.new(1, 30, 1, 30)
+    ProgressGlow.Position = UDim2.new(0, -15, 0, -15)
+    ProgressGlow.BackgroundColor3 = GUI.Colors.Primary
+    ProgressGlow.BackgroundTransparency = 0.5
+    ProgressGlow.BorderSizePixel = 0
+    ProgressGlow.ZIndex = GUI.ZLayers.ServerChange + 4
+    ProgressGlow.Parent = Progress
+    
+    local GlowCorner = Instance.new("UICorner")
+    GlowCorner.CornerRadius = UDim.new(1, 0)
+    GlowCorner.Parent = ProgressGlow
     
     Tween(Title, {TextTransparency = 0}, 0.7)
     task.wait(0.1)
@@ -1401,28 +1595,29 @@ function GUI.ShowServerChangeScreen()
 end
 
 -- ============================================
--- BOOST FPS - FULL SCREEN OVERLAY
+-- BOOST FPS - FULL SCREEN OVERLAY (BELOW GUI!)
 -- ============================================
 
 function GUI.SetBoostFPS(state)
     if state then
         if GUI._BoostScreen then return end
         
+        -- BOOST IMAGE IS BELOW MAIN GUI (Z-INDEX 5000 vs 10000)
         local Screen = Instance.new("ImageLabel")
         Screen.Name = "BoostScreen"
         Screen.Size = UDim2.new(1, 0, 1, 0)
         Screen.BackgroundTransparency = 1
         Screen.ScaleType = Enum.ScaleType.Crop
         Screen.ImageTransparency = 0
-        Screen.ZIndex = 15000
+        Screen.ZIndex = GUI.ZLayers.BoostOverlay  -- BELOW MAIN GUI!
         Screen.Parent = GUI.SkibidiGui
         
         LoadImageFromGitHub(BOOST_BG_FILENAME, Screen, function()
-            print("[GUI] 🚀 Boost image loaded")
+            print("[GUI] 🚀 Boost image loaded (BELOW GUI)")
         end)
         
         GUI._BoostScreen = Screen
-        print("[GUI] ⚡ FAST MODE ACTIVATED")
+        print("[GUI] ⚡ FAST MODE ACTIVATED - GUI ON TOP!")
     else
         if GUI._BoostScreen then
             Tween(GUI._BoostScreen, {ImageTransparency = 1}, 0.5, nil, nil, function()
