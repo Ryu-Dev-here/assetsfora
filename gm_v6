@@ -12,6 +12,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 
+
 local GUI = {}
 GUI.Config = {}
 GUI.SkibidiGui = nil
@@ -28,7 +29,8 @@ GUI.IsPaused = false
 GUI.IsMobile = false
 GUI.IsTablet = false
 GUI.ScreenSize = Vector2.new(0, 0)
-GUI.PersistentData = nil
+repeat task.wait() until getgenv().SkibidiPersistentStorage
+GUI.PersistentData = getgenv().SkibidiPersistentStorage
 GUI.DownloadQueue = {}
 GUI.DownloadProgress = {}
 GUI.LoadedAssets = {}
@@ -75,9 +77,10 @@ local ASSETS = {
     {name = "backlua.png", type = "image", size = 174000, priority = 1, isLarge = false},
     
     -- Videos (WEBM files - LARGE, need lazy loading)
-    {name = "boost.webm", type = "video", size = 16539000, priority = 3, isLarge = true, lazyLoad = true},
-    {name = "change.webm", type = "video", size = 25266000, priority = 3, isLarge = true, lazyLoad = true},
-    {name = "loading.webm", type = "video", size = 3748000, priority = 1, isLarge = false, immediate = true},
+    {name = "boost.png", type = "image", size = 800000, priority = 3},
+    {name = "change.png", type = "image", size = 800000, priority = 3},
+    {name = "loading.png", type = "image", size = 800000, priority = 1},
+
     
     -- Audio (MP3 file - LARGE)
     {name = "sound.mp3", type = "audio", size = 7949000, priority = 2, isLarge = true, lazyLoad = true},
@@ -397,29 +400,6 @@ function AssetDownloader:LoadAsset(assetPath, targetObject)
             targetObject.Image = assetUrl
             print(string.format("[ASSET] 🖼️ Applied image"))
             
-        elseif targetObject:IsA("VideoFrame") then
-            targetObject.Video = assetUrl
-            print(string.format("[ASSET] 🎬 Applied video"))
-            
-            -- AGGRESSIVE VIDEO PLAY (v8.2 FIX)
-            task.spawn(function()
-                task.wait(0.3)
-                if targetObject and targetObject.Parent then
-                    local playSuccess = pcall(function()
-                        targetObject:Play()
-                        print(string.format("[ASSET] ▶️ Playing video"))
-                    end)
-                    if not playSuccess then
-                        -- Retry play after delay
-                        task.wait(0.5)
-                        pcall(function()
-                            targetObject:Play()
-                            print(string.format("[ASSET] ▶️ Retry play successful"))
-                        end)
-                    end
-                end
-            end)
-            
         elseif targetObject:IsA("Sound") then
             targetObject.SoundId = assetUrl
             print(string.format("[ASSET] 🔊 Applied sound"))
@@ -490,14 +470,19 @@ function GUI.CreateAdvancedLoader()
     LoaderScreen.Parent = GUI.SkibidiGui
     
     -- LOADING.WEBM AS BACKGROUND (AGGRESSIVE LOADING - v8.2 FIX)
-    local LoadingVideo = Instance.new("VideoFrame")
-    LoadingVideo.Size = UDim2.new(0.5, 0, 1, 0)
+    local LoadingImage = Instance.new("ImageLabel")
+    LoadingImage.Size = UDim2.new(0.5, 0, 1, 0)
     LoadingVideo.Position = UDim2.new(0, 0, 0, 0)
-    LoadingVideo.BackgroundTransparency = 1
-    LoadingVideo.Looped = true
-    LoadingVideo.Volume = 0
-    LoadingVideo.ZIndex = GUI.ZLayers.LoadingScreen
-    LoadingVideo.Parent = LoaderScreen
+    LoadingImage.Position = UDim2.new(0, 0, 0, 0)
+    LoadingImage.BackgroundTransparency = 1
+    LoadingImage.ScaleType = Enum.ScaleType.Crop
+    LoadingImage.ZIndex = GUI.ZLayers.LoadingScreen
+    LoadingImage.Parent = LoaderScreen
+
+    AssetDownloader:LoadAsset(
+        ASSETS_FOLDER .. "/loading.png",
+        LoadingImage
+    )
     
     print("[ASSET] === PRIORITY: Loading loading.webm for loader screen ===")
     
@@ -505,7 +490,7 @@ function GUI.CreateAdvancedLoader()
     task.spawn(function()
         local loadingAsset = nil
         for _, asset in ipairs(ASSETS) do
-            if asset.name == "loading.webm" then
+            if asset.name == "loading.png" then
                 loadingAsset = asset
                 break
             end
@@ -789,127 +774,6 @@ function GUI.CreateAdvancedLoader()
         end
     }
 end
-
--- ============================================
--- PERSISTENT STORAGE
--- ============================================
-
-local PersistentStorage = {}
-
-function PersistentStorage:Init()
-    pcall(function()
-        if makefolder and not isfolder(WORKSPACE_FOLDER) then
-            makefolder(WORKSPACE_FOLDER)
-        end
-        if makefolder and not isfolder(ASSETS_FOLDER) then
-            makefolder(ASSETS_FOLDER)
-        end
-    end)
-end
-
-function PersistentStorage:Load()
-    local success, data = pcall(function()
-        if not isfile or not readfile then return nil end
-        if not isfile(DATA_FILE) then return nil end
-        
-        local content = readfile(DATA_FILE)
-        return HttpService:JSONDecode(content)
-    end)
-    
-    if success and data and type(data) == "table" then
-        return data
-    end
-    
-    return {
-        totalBountyGained = 0,
-        totalKills = 0,
-        totalTimeSeconds = 0,
-        currentSessionStart = os.time(),
-        currentSessionBounty = 0,
-        currentSessionKills = 0,
-        currentSessionTime = 0,
-        sessions = {},
-        lifetimeStats = {
-            totalSessions = 0,
-            averageBountyPerSession = 0,
-            averageKillsPerSession = 0,
-            bestSession = {bounty = 0, kills = 0, time = 0}
-        }
-    }
-end
-
-function PersistentStorage:Save(data)
-    pcall(function()
-        if not writefile then return end
-        local content = HttpService:JSONEncode(data)
-        writefile(DATA_FILE, content)
-    end)
-end
-
-function PersistentStorage:UpdateSession(bountyGain, kills, timeElapsed)
-    local data = self:Load()
-    
-    data.totalBountyGained = (data.totalBountyGained or 0) + bountyGain
-    data.totalKills = (data.totalKills or 0) + kills
-    data.totalTimeSeconds = (data.totalTimeSeconds or 0) + timeElapsed
-    
-    data.currentSessionBounty = bountyGain
-    data.currentSessionKills = kills
-    data.currentSessionTime = timeElapsed
-    
-    table.insert(data.sessions, {
-        timestamp = os.time(),
-        bounty = bountyGain,
-        kills = kills,
-        time = timeElapsed
-    })
-    
-    if #data.sessions > 100 then
-        table.remove(data.sessions, 1)
-    end
-    
-    data.lifetimeStats.totalSessions = #data.sessions
-    if #data.sessions > 0 then
-        local totalB, totalK = 0, 0
-        for _, session in ipairs(data.sessions) do
-            totalB = totalB + (session.bounty or 0)
-            totalK = totalK + (session.kills or 0)
-        end
-        data.lifetimeStats.averageBountyPerSession = math.floor(totalB / #data.sessions)
-        data.lifetimeStats.averageKillsPerSession = math.floor(totalK / #data.sessions)
-    end
-    
-    if bountyGain > (data.lifetimeStats.bestSession.bounty or 0) then
-        data.lifetimeStats.bestSession = {
-            bounty = bountyGain,
-            kills = kills,
-            time = timeElapsed,
-            timestamp = os.time()
-        }
-    end
-    
-    self:Save(data)
-    return data
-end
-
-function PersistentStorage:GetStats()
-    local data = self:Load()
-    return {
-        total_bounty = data.totalBountyGained or 0,
-        total_kills = data.totalKills or 0,
-        total_time = data.totalTimeSeconds or 0,
-        session_bounty = data.currentSessionBounty or 0,
-        session_kills = data.currentSessionKills or 0,
-        session_time = data.currentSessionTime or 0,
-        lifetime = data.lifetimeStats or {}
-    }
-end
-
-PersistentStorage:Init()
-GUI.PersistentData = PersistentStorage:Load()
-
-getgenv().HohosPersistentStorage = PersistentStorage
-
 -- ============================================
 -- ASSET INITIALIZATION
 -- ============================================
@@ -936,8 +800,7 @@ function GUI.InitAssets()
     
     task.wait(0.3)
     
-    -- Mark loading.webm as loading (already started)
-    loader.UpdateDownloadItem("loading.webm", 0.5, 0, "loading")
+    loader.UpdateDownloadItem("loading.png", 1, 0, "cached")
     
     local totalSize = 0
     local downloadedSize = 0
@@ -1576,11 +1439,16 @@ function GUI.CreateMainGUI()
         return Value
     end
     
-    local stats = PersistentStorage:GetStats()
+    local stats = GUI.PersistentData and GUI.PersistentData:Load() or {}
     
     GUIVars.TargetValue = CreateStatCard("TARGET", "Searching...", "target", 1)
     GUIVars.StateValue = CreateStatCard("STATUS", "Initializing", "status", 2)
-    GUIVars.BountyValue = CreateStatCard("TOTAL BOUNTY", "+" .. tostring(stats.total_bounty), "bounty", 3)
+    GUIVars.BountyValue = CreateStatCard(
+        "TOTAL BOUNTY",
+        "+" .. tostring(stats.TotalBountyGained or 0),
+        "bounty",
+        3
+    )
     GUIVars.TimeValue = CreateStatCard("TOTAL TIME", "0:00", "time", 4)
     
     getgenv().GUIVars = GUIVars
@@ -1674,20 +1542,24 @@ function GUI.ShowServerChangeScreen()
     Screen.ZIndex = GUI.ZLayers.ServerChange
     Screen.Parent = GUI.SkibidiGui
     
-    if GUI.Config.VideoBackgrounds then
-        local VideoBg = Instance.new("VideoFrame")
-        VideoBg.Size = UDim2.new(1, 0, 1, 0)
-        VideoBg.BackgroundTransparency = 1
-        VideoBg.Looped = true
-        VideoBg.Volume = 0
-        VideoBg.ZIndex = GUI.ZLayers.ServerChange + 1
-        VideoBg.Parent = Screen
+    local BgImage = Instance.new("ImageLabel")
+    BgImage.Size = UDim2.new(1, 0, 1, 0)
+    BgImage.BackgroundTransparency = 1
+    BgImage.ScaleType = Enum.ScaleType.Crop
+    BgImage.ZIndex = GUI.ZLayers.ServerChange + 1
+    BgImage.Parent = Screen
+
+    AssetDownloader:LoadAsset(
+        ASSETS_FOLDER .. "/change.png",
+        BgImage
+    )
+
         
         -- LAZY LOAD change.webm
         task.spawn(function()
             local changeAsset = nil
             for _, asset in ipairs(ASSETS) do
-                if asset.name == "change.webm" then
+                if asset.name == "change.png" then
                     changeAsset = asset
                     break
                 end
@@ -1715,7 +1587,7 @@ function GUI.ShowServerChangeScreen()
     
     local Container = Instance.new("Frame")
     Container.Size = UDim2.new(0, containerWidth, 0, containerHeight)
-    Container.Position = UDim2.new(0.5, -containerWidth/2, 0.5, -containerHeight/2)
+    Container.Position = UDim2.new(0, 40, 0.5, -containerHeight/2)
     Container.BackgroundTransparency = 1
     Container.ZIndex = GUI.ZLayers.ServerChange + 3
     Container.Parent = Screen
@@ -1846,7 +1718,16 @@ function GUI.Cleanup()
         local totalKills = getgenv().TotalKills or 0
         local sessionTime = math.floor(tick() - (getgenv().SessionStartTime or tick()))
         
-        PersistentStorage:UpdateSession(sessionGain, totalKills, sessionTime)
+        if GUI.PersistentData then
+            GUI.PersistentData:Save({
+                TotalBountyGained = (StoredData.TotalBountyGained or 0) + sessionGain,
+                TotalKills = TotalKills,
+                SessionsCompleted = (StoredData.SessionsCompleted or 0) + 1,
+                EliminatedPlayers = StoredData.EliminatedPlayers or {},
+                LastSession = os.time()
+            })
+        end
+
     end
     
     for _, tween in ipairs(GUI.RunningTweens) do
