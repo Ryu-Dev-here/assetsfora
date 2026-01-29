@@ -2,6 +2,7 @@
 -- HOHO'S BOUNTY REMAKE v9.0 - FULLSCREEN IMAGES
 -- By Ryu and Caucker - January 2026
 -- Modified: Fullscreen centered images, all text on LEFT side with animated gradient
+-- FIXED: Removed duplicate code sections
 -- ============================================
 
 local TweenService = game:GetService("TweenService")
@@ -791,18 +792,6 @@ end
 -- ASSET INITIALIZATION
 -- ============================================
 
--- ============================================
--- IMPROVED ASSET INITIALIZATION
--- DROP-IN REPLACEMENT FOR InitAssets()
--- ============================================
-
--- This function REPLACES the old GUI.InitAssets() function
--- Key improvements:
--- 1. Properly checks if files exist before downloading
--- 2. Verifies file integrity (size check)
--- 3. Shows accurate progress based on what actually needs downloading
--- 4. Doesn't re-download files that are already cached
-
 function GUI.InitAssets()
     local loader = GUI.CreateAdvancedLoader()
     if not loader then return end
@@ -814,7 +803,7 @@ function GUI.InitAssets()
         if not isfolder(WORKSPACE_FOLDER) then makefolder(WORKSPACE_FOLDER) end
         if not isfolder(ASSETS_FOLDER) then makefolder(ASSETS_FOLDER) end
     end)
-    
+        
     task.wait(0.3)
     
     loader.Update(0.15, "Checking assets...")
@@ -831,9 +820,6 @@ function GUI.InitAssets()
     
     task.wait(0.2)
     
-    -- ============================================
-    -- SMART FILE DETECTION - Check what exists
-    -- ============================================
     local existingFiles = {}
     local missingFiles = {}
     local lazyLoadFiles = {}
@@ -879,26 +865,20 @@ function GUI.InitAssets()
     print(string.format("[ASSETS] 📊 Summary: %d cached, %d to download, %d lazy", 
         cachedFiles, needDownload, lazyFiles))
     
-    -- ============================================
-    -- DOWNLOAD ONLY MISSING FILES
-    -- ============================================
+    -- Download missing files
     if needDownload == 0 then
-        -- Everything is cached!
         loader.Update(0.85, string.format("✅ All %d assets cached!", cachedFiles))
         print("[ASSETS] ✅ No downloads needed!")
         task.wait(0.5)
     else
-        -- Download missing files
         loader.Update(0.25, string.format("📥 Downloading %d files...", needDownload))
         
         local completedDownloads = 0
         
         for i, asset in ipairs(missingFiles) do
-            -- Update progress bar
             local progress = 0.25 + ((i - 1) / needDownload) * 0.55
             loader.Update(progress, "Downloading " .. asset.name .. "...")
             
-            -- Download this specific file
             AssetDownloader:DownloadAsset(asset, function(name, prog, size, status)
                 loader.UpdateDownloadItem(name, prog, size, status)
                 
@@ -910,11 +890,9 @@ function GUI.InitAssets()
                 end
             end)
             
-            -- Small delay between downloads to prevent rate limiting
             task.wait(0.1)
         end
         
-        -- Wait for all downloads to complete
         loader.Update(0.80, "Finalizing downloads...")
         local maxWait = 15
         local waited = 0
@@ -935,9 +913,7 @@ function GUI.InitAssets()
     
     task.wait(0.3)
     
-    -- ============================================
-    -- INITIALIZE MUSIC SYSTEM
-    -- ============================================
+    -- Initialize music system
     loader.Update(0.90, "Initializing audio...")
     
     pcall(function()
@@ -947,7 +923,7 @@ function GUI.InitAssets()
         GUI.MusicSound.Volume = GUI.Config.MusicVolume
         GUI.MusicSound.Parent = SoundService
         
-        -- Lazy load music in background (doesn't block GUI)
+        -- Lazy load music in background
         task.spawn(function()
             task.wait(1)
             
@@ -1008,12 +984,6 @@ function GUI.InitAssets()
     task.wait(0.6)
     loader.Complete()
 end
-    
-    local teleportConnection = Players.LocalPlayer.OnTeleport:Connect(function()
-        GUI.SaveMusicState()
-    end)
-    GUI.AddConnection(teleportConnection)
-end
 
 -- ============================================
 -- MUSIC STATE MANAGEMENT
@@ -1031,6 +1001,7 @@ function GUI.SaveMusicState()
         end
     end)
 end
+
 
 -- ============================================
 -- MAIN GUI CREATION
