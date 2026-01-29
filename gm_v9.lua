@@ -1,7 +1,7 @@
 -- ============================================
--- HOHO'S BOUNTY REMAKE v8.3 - IMAGES ONLY
+-- HOHO'S BOUNTY REMAKE v9.0 - FULLSCREEN IMAGES
 -- By Ryu and Caucker - January 2026
--- Modified: Images only, server change text on LEFT side
+-- Modified: Fullscreen centered images, all text on LEFT side with animated gradient
 -- ============================================
 
 local TweenService = game:GetService("TweenService")
@@ -439,13 +439,52 @@ function AssetDownloader:LazyLoadAsset(asset, targetObject, onProgress)
 end
 
 -- ============================================
--- LOADING SCREEN WITH IMAGE
+-- ANIMATED GRADIENT TEXT FUNCTION
+-- ============================================
+
+local function CreateAnimatedGradientText(parent, text, size, position, textSize, zIndex)
+    local TextLabel = Instance.new("TextLabel")
+    TextLabel.Text = text
+    TextLabel.Size = size
+    TextLabel.Position = position
+    TextLabel.BackgroundTransparency = 1
+    TextLabel.Font = Enum.Font.GothamBold
+    TextLabel.TextSize = textSize
+    TextLabel.TextColor3 = GUI.Colors.Text
+    TextLabel.TextTransparency = 1
+    TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TextLabel.ZIndex = zIndex
+    TextLabel.Parent = parent
+    
+    -- ANIMATED GRADIENT
+    local Gradient = Instance.new("UIGradient")
+    Gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, GUI.Colors.Primary),
+        ColorSequenceKeypoint.new(0.5, GUI.Colors.Accent1),
+        ColorSequenceKeypoint.new(1, GUI.Colors.Accent3)
+    }
+    Gradient.Offset = Vector2.new(-1, 0)
+    Gradient.Rotation = 0
+    Gradient.Parent = TextLabel
+    
+    -- Animate gradient
+    task.spawn(function()
+        while TextLabel and TextLabel.Parent and Gradient and Gradient.Parent do
+            Tween(Gradient, {Offset = Vector2.new(1, 0)}, 3, Enum.EasingStyle.Linear)
+            task.wait(3)
+            if not Gradient or not Gradient.Parent then break end
+            Gradient.Offset = Vector2.new(-1, 0)
+        end
+    end)
+    
+    return TextLabel
+end
+
+-- ============================================
+-- LOADING SCREEN WITH FULLSCREEN IMAGE
 -- ============================================
 
 function GUI.CreateAdvancedLoader()
-    local loaderWidth = GetResponsiveValue(700, 380, 520)
-    local loaderHeight = GetResponsiveValue(500, 320, 400)
-    
     local LoaderScreen = Instance.new("Frame")
     LoaderScreen.Name = "AdvancedLoader"
     LoaderScreen.Size = UDim2.new(1, 0, 1, 0)
@@ -454,13 +493,14 @@ function GUI.CreateAdvancedLoader()
     LoaderScreen.ZIndex = GUI.ZLayers.LoadingScreen
     LoaderScreen.Parent = GUI.SkibidiGui
     
-    -- LOADING IMAGE AS BACKGROUND
+    -- FULLSCREEN CENTERED LOADING IMAGE
     local LoadingImage = Instance.new("ImageLabel")
-    LoadingImage.Size = UDim2.new(0.5, 0, 1, 0)
-    LoadingImage.Position = UDim2.new(0, 0, 0, 0)
+    LoadingImage.Size = UDim2.new(1, 0, 1, 0)
+    LoadingImage.Position = UDim2.new(0.5, 0, 0.5, 0)
+    LoadingImage.AnchorPoint = Vector2.new(0.5, 0.5)
     LoadingImage.BackgroundTransparency = 1
     LoadingImage.ScaleType = Enum.ScaleType.Crop
-    LoadingImage.ZIndex = GUI.ZLayers.LoadingScreen
+    LoadingImage.ZIndex = GUI.ZLayers.LoadingScreen + 1
     LoadingImage.Parent = LoaderScreen
 
     -- Load loading.png
@@ -485,56 +525,54 @@ function GUI.CreateAdvancedLoader()
         end
     end)
     
-    local RightOverlay = Instance.new("Frame")
-    RightOverlay.Size = UDim2.new(0.5, 0, 1, 0)
-    RightOverlay.Position = UDim2.new(0.5, 0, 0, 0)
-    RightOverlay.BackgroundColor3 = GUI.Colors.Background
-    RightOverlay.BorderSizePixel = 0
-    RightOverlay.ZIndex = GUI.ZLayers.LoadingScreen
-    RightOverlay.Parent = LoaderScreen
+    -- Dark overlay for readability
+    local Overlay = Instance.new("Frame")
+    Overlay.Size = UDim2.new(1, 0, 1, 0)
+    Overlay.BackgroundColor3 = GUI.Colors.Overlay
+    Overlay.BackgroundTransparency = 0.4
+    Overlay.BorderSizePixel = 0
+    Overlay.ZIndex = GUI.ZLayers.LoadingScreen + 2
+    Overlay.Parent = LoaderScreen
     
-    local BlendOverlay = Instance.new("Frame")
-    BlendOverlay.Size = UDim2.new(1, 0, 1, 0)
-    BlendOverlay.BackgroundTransparency = 1
-    BlendOverlay.ZIndex = GUI.ZLayers.LoadingScreen + 1
-    BlendOverlay.Parent = LoaderScreen
-    
+    -- Gradient from left
     local gradient = Instance.new("UIGradient")
     gradient.Color = ColorSequence.new{
         ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-        ColorSequenceKeypoint.new(0.5, GUI.Colors.Background),
-        ColorSequenceKeypoint.new(1, GUI.Colors.Background)
+        ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0, 0, 0)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
     }
     gradient.Rotation = 0
     gradient.Transparency = NumberSequence.new{
-        NumberSequenceKeypoint.new(0, 0.6),
-        NumberSequenceKeypoint.new(0.5, 0),
-        NumberSequenceKeypoint.new(1, 0)
+        NumberSequenceKeypoint.new(0, 0.1),
+        NumberSequenceKeypoint.new(0.6, 0.7),
+        NumberSequenceKeypoint.new(1, 1)
     }
-    gradient.Parent = BlendOverlay
+    gradient.Parent = Overlay
+    
+    -- TEXT CONTAINER ON LEFT SIDE
+    local containerWidth = GetResponsiveValue(600, 340, 450)
+    local containerHeight = GetResponsiveValue(400, 280, 340)
     
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0, loaderWidth, 0, loaderHeight)
-    Container.Position = UDim2.new(0.5, -loaderWidth/2, 0.5, -loaderHeight/2)
+    Container.Size = UDim2.new(0, containerWidth, 0, containerHeight)
+    Container.Position = UDim2.new(0, 50, 0.5, -containerHeight/2)
     Container.BackgroundTransparency = 1
-    Container.ZIndex = GUI.ZLayers.LoadingScreen + 2
+    Container.ZIndex = GUI.ZLayers.LoadingScreen + 3
     Container.Parent = LoaderScreen
     
     local logoSize = GetResponsiveValue(62, 44, 52)
-    local Logo = Instance.new("TextLabel")
-    Logo.Text = "HOHO'S BOUNTY"
-    Logo.Size = UDim2.new(1, 0, 0, logoSize + 18)
-    Logo.BackgroundTransparency = 1
-    Logo.Font = Enum.Font.GothamBold
-    Logo.TextColor3 = GUI.Colors.Text
-    Logo.TextSize = logoSize
-    Logo.TextTransparency = 1
-    Logo.ZIndex = GUI.ZLayers.LoadingScreen + 3
-    Logo.Parent = Container
+    local Logo = CreateAnimatedGradientText(
+        Container,
+        "HOHO'S BOUNTY",
+        UDim2.new(1, 0, 0, logoSize + 18),
+        UDim2.new(0, 0, 0, 0),
+        logoSize,
+        GUI.ZLayers.LoadingScreen + 4
+    )
     
     local badgeSize = GetResponsiveValue(14, 11, 12)
     local VersionBadge = Instance.new("TextLabel")
-    VersionBadge.Text = "REMAKE v8.3 - By Ryu & Caucker"
+    VersionBadge.Text = "REMAKE v9.0 - By Ryu & Caucker"
     VersionBadge.Size = UDim2.new(1, 0, 0, badgeSize + 14)
     VersionBadge.Position = UDim2.new(0, 0, 0, logoSize + 26)
     VersionBadge.BackgroundTransparency = 1
@@ -542,17 +580,18 @@ function GUI.CreateAdvancedLoader()
     VersionBadge.TextColor3 = GUI.Colors.Primary
     VersionBadge.TextSize = badgeSize
     VersionBadge.TextTransparency = 1
-    VersionBadge.ZIndex = GUI.ZLayers.LoadingScreen + 3
+    VersionBadge.TextXAlignment = Enum.TextXAlignment.Left
+    VersionBadge.ZIndex = GUI.ZLayers.LoadingScreen + 4
     VersionBadge.Parent = Container
     
     local progressY = GetResponsiveValue(160, 130, 145)
     local ProgressBar = Instance.new("Frame")
     ProgressBar.Size = UDim2.new(1, -40, 0, 6)
-    ProgressBar.Position = UDim2.new(0, 20, 0, progressY)
+    ProgressBar.Position = UDim2.new(0, 0, 0, progressY)
     ProgressBar.BackgroundColor3 = GUI.Colors.Surface
     ProgressBar.BorderSizePixel = 0
     ProgressBar.BackgroundTransparency = 1
-    ProgressBar.ZIndex = GUI.ZLayers.LoadingScreen + 3
+    ProgressBar.ZIndex = GUI.ZLayers.LoadingScreen + 4
     ProgressBar.Parent = Container
     
     local ProgressCorner = Instance.new("UICorner")
@@ -563,7 +602,7 @@ function GUI.CreateAdvancedLoader()
     Progress.Size = UDim2.new(0, 0, 1, 0)
     Progress.BackgroundColor3 = GUI.Colors.Primary
     Progress.BorderSizePixel = 0
-    Progress.ZIndex = GUI.ZLayers.LoadingScreen + 4
+    Progress.ZIndex = GUI.ZLayers.LoadingScreen + 5
     Progress.Parent = ProgressBar
     
     local ProgressCorner2 = Instance.new("UICorner")
@@ -574,41 +613,37 @@ function GUI.CreateAdvancedLoader()
     local StatusText = Instance.new("TextLabel")
     StatusText.Text = "Initializing..."
     StatusText.Size = UDim2.new(1, -40, 0, statusSize + 8)
-    StatusText.Position = UDim2.new(0, 20, 0, progressY + 26)
+    StatusText.Position = UDim2.new(0, 0, 0, progressY + 26)
     StatusText.BackgroundTransparency = 1
     StatusText.Font = Enum.Font.GothamMedium
     StatusText.TextColor3 = GUI.Colors.TextMuted
     StatusText.TextSize = statusSize
     StatusText.TextTransparency = 1
     StatusText.TextXAlignment = Enum.TextXAlignment.Left
-    StatusText.ZIndex = GUI.ZLayers.LoadingScreen + 3
+    StatusText.ZIndex = GUI.ZLayers.LoadingScreen + 4
     StatusText.Parent = Container
     
     local percentSize = GetResponsiveValue(42, 28, 35)
-    local PercentText = Instance.new("TextLabel")
-    PercentText.Text = "0%"
-    PercentText.Size = UDim2.new(1, -40, 0, percentSize + 8)
-    PercentText.Position = UDim2.new(0, 20, 0, progressY + 52)
-    PercentText.BackgroundTransparency = 1
-    PercentText.Font = Enum.Font.GothamBold
-    PercentText.TextColor3 = GUI.Colors.Primary
-    PercentText.TextSize = percentSize
-    PercentText.TextTransparency = 1
-    PercentText.TextXAlignment = Enum.TextXAlignment.Left
-    PercentText.ZIndex = GUI.ZLayers.LoadingScreen + 3
-    PercentText.Parent = Container
+    local PercentText = CreateAnimatedGradientText(
+        Container,
+        "0%",
+        UDim2.new(1, -40, 0, percentSize + 8),
+        UDim2.new(0, 0, 0, progressY + 52),
+        percentSize,
+        GUI.ZLayers.LoadingScreen + 4
+    )
     
     local detailsY = progressY + 110
     local DetailsContainer = Instance.new("ScrollingFrame")
     DetailsContainer.Size = UDim2.new(1, -40, 0, 140)
-    DetailsContainer.Position = UDim2.new(0, 20, 0, detailsY)
+    DetailsContainer.Position = UDim2.new(0, 0, 0, detailsY)
     DetailsContainer.BackgroundTransparency = 1
     DetailsContainer.BorderSizePixel = 0
     DetailsContainer.ScrollBarThickness = 4
     DetailsContainer.ScrollBarImageColor3 = GUI.Colors.Primary
     DetailsContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
     DetailsContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    DetailsContainer.ZIndex = GUI.ZLayers.LoadingScreen + 3
+    DetailsContainer.ZIndex = GUI.ZLayers.LoadingScreen + 4
     DetailsContainer.Parent = Container
     
     local DetailsLayout = Instance.new("UIListLayout")
@@ -640,7 +675,7 @@ function GUI.CreateAdvancedLoader()
             Item.Size = UDim2.new(1, 0, 0, itemSize + 10)
             Item.BackgroundColor3 = GUI.Colors.SurfaceLight
             Item.BorderSizePixel = 0
-            Item.ZIndex = GUI.ZLayers.LoadingScreen + 4
+            Item.ZIndex = GUI.ZLayers.LoadingScreen + 5
             Item.Parent = DetailsContainer
             
             local ItemCorner = Instance.new("UICorner")
@@ -657,7 +692,7 @@ function GUI.CreateAdvancedLoader()
             NameLabel.TextSize = itemSize
             NameLabel.TextXAlignment = Enum.TextXAlignment.Left
             NameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-            NameLabel.ZIndex = GUI.ZLayers.LoadingScreen + 5
+            NameLabel.ZIndex = GUI.ZLayers.LoadingScreen + 6
             NameLabel.Parent = Item
             
             local StatusLabel = Instance.new("TextLabel")
@@ -669,7 +704,7 @@ function GUI.CreateAdvancedLoader()
             StatusLabel.TextColor3 = GUI.Colors.TextMuted
             StatusLabel.TextSize = itemSize - 1
             StatusLabel.TextXAlignment = Enum.TextXAlignment.Right
-            StatusLabel.ZIndex = GUI.ZLayers.LoadingScreen + 5
+            StatusLabel.ZIndex = GUI.ZLayers.LoadingScreen + 6
             StatusLabel.Parent = Item
             
             downloadItems[assetName] = {
@@ -1114,7 +1149,7 @@ function GUI.CreateMainGUI()
     
     local versionTextSize = GetResponsiveValue(11, 9, 10)
     local VersionText = Instance.new("TextLabel")
-    VersionText.Text = "v8.3"
+    VersionText.Text = "v9.0"
     VersionText.Size = UDim2.new(1, 0, 1, 0)
     VersionText.BackgroundTransparency = 1
     VersionText.Font = Enum.Font.GothamBold
@@ -1493,7 +1528,7 @@ function GUI.CreateMainGUI()
 end
 
 -- ============================================
--- SERVER CHANGE SCREEN (TEXT ON LEFT SIDE!)
+-- SERVER CHANGE SCREEN (FULLSCREEN IMAGE, TEXT LEFT!)
 -- ============================================
 
 function GUI.ShowServerChangeScreen()
@@ -1507,9 +1542,11 @@ function GUI.ShowServerChangeScreen()
     Screen.ZIndex = GUI.ZLayers.ServerChange
     Screen.Parent = GUI.SkibidiGui
     
-    -- BACKGROUND IMAGE
+    -- FULLSCREEN CENTERED IMAGE
     local BgImage = Instance.new("ImageLabel")
     BgImage.Size = UDim2.new(1, 0, 1, 0)
+    BgImage.Position = UDim2.new(0.5, 0, 0.5, 0)
+    BgImage.AnchorPoint = Vector2.new(0.5, 0.5)
     BgImage.BackgroundTransparency = 1
     BgImage.ScaleType = Enum.ScaleType.Crop
     BgImage.ZIndex = GUI.ZLayers.ServerChange + 1
@@ -1533,55 +1570,68 @@ function GUI.ShowServerChangeScreen()
         end
     end)
     
+    -- Dark overlay
     local Overlay = Instance.new("Frame")
     Overlay.Size = UDim2.new(1, 0, 1, 0)
     Overlay.BackgroundColor3 = GUI.Colors.Overlay
-    Overlay.BackgroundTransparency = 0.3
+    Overlay.BackgroundTransparency = 0.4
     Overlay.BorderSizePixel = 0
     Overlay.ZIndex = GUI.ZLayers.ServerChange + 2
     Overlay.Parent = Screen
     
+    -- Gradient from left for text visibility
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+        ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0, 0, 0)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+    }
+    gradient.Rotation = 0
+    gradient.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0.1),
+        NumberSequenceKeypoint.new(0.6, 0.8),
+        NumberSequenceKeypoint.new(1, 1)
+    }
+    gradient.Parent = Overlay
+    
     -- TEXT CONTAINER ON LEFT SIDE
-    local containerWidth = GetResponsiveValue(500, 300, 400)
-    local containerHeight = GetResponsiveValue(180, 140, 160)
+    local containerWidth = GetResponsiveValue(600, 340, 450)
+    local containerHeight = GetResponsiveValue(200, 160, 180)
     
     local Container = Instance.new("Frame")
     Container.Size = UDim2.new(0, containerWidth, 0, containerHeight)
-    Container.Position = UDim2.new(0, 40, 0.5, -containerHeight/2) -- LEFT SIDE (0, 40)
+    Container.Position = UDim2.new(0, 50, 0.5, -containerHeight/2)
     Container.BackgroundTransparency = 1
     Container.ZIndex = GUI.ZLayers.ServerChange + 3
     Container.Parent = Screen
     
-    local titleSize = GetResponsiveValue(46, 30, 38)
-    local Title = Instance.new("TextLabel")
-    Title.Text = "CHANGING SERVER"
-    Title.Size = UDim2.new(1, 0, 0, titleSize + 20)
-    Title.BackgroundTransparency = 1
-    Title.Font = Enum.Font.GothamBold
-    Title.TextSize = titleSize
-    Title.TextColor3 = GUI.Colors.Text
-    Title.TextTransparency = 1
-    Title.TextXAlignment = Enum.TextXAlignment.Left -- LEFT ALIGNED
-    Title.ZIndex = GUI.ZLayers.ServerChange + 4
-    Title.Parent = Container
+    local titleSize = GetResponsiveValue(56, 36, 46)
+    local Title = CreateAnimatedGradientText(
+        Container,
+        "CHANGING SERVER",
+        UDim2.new(1, 0, 0, titleSize + 20),
+        UDim2.new(0, 0, 0, 0),
+        titleSize,
+        GUI.ZLayers.ServerChange + 4
+    )
     
-    local subtitleSize = GetResponsiveValue(18, 12, 15)
+    local subtitleSize = GetResponsiveValue(20, 14, 17)
     local Subtitle = Instance.new("TextLabel")
     Subtitle.Text = "Finding optimal server..."
     Subtitle.Size = UDim2.new(1, 0, 0, subtitleSize + 12)
-    Subtitle.Position = UDim2.new(0, 0, 0, titleSize + 28)
+    Subtitle.Position = UDim2.new(0, 0, 0, titleSize + 32)
     Subtitle.BackgroundTransparency = 1
     Subtitle.Font = Enum.Font.Gotham
     Subtitle.TextSize = subtitleSize
     Subtitle.TextColor3 = GUI.Colors.Primary
     Subtitle.TextTransparency = 1
-    Subtitle.TextXAlignment = Enum.TextXAlignment.Left -- LEFT ALIGNED
+    Subtitle.TextXAlignment = Enum.TextXAlignment.Left
     Subtitle.ZIndex = GUI.ZLayers.ServerChange + 4
     Subtitle.Parent = Container
     
-    local progressY = titleSize + 70
+    local progressY = titleSize + 76
     local ProgressBg = Instance.new("Frame")
-    ProgressBg.Size = UDim2.new(1, 0, 0, 5)
+    ProgressBg.Size = UDim2.new(1, 0, 0, 6)
     ProgressBg.Position = UDim2.new(0, 0, 0, progressY)
     ProgressBg.BackgroundColor3 = GUI.Colors.Surface
     ProgressBg.BorderSizePixel = 0
@@ -1614,7 +1664,7 @@ function GUI.ShowServerChangeScreen()
 end
 
 -- ============================================
--- BOOST SCREEN (IMAGE ONLY)
+-- BOOST SCREEN (FULLSCREEN IMAGE CENTERED!)
 -- ============================================
 
 function GUI.ShowBoostScreen()
@@ -1631,8 +1681,11 @@ function GUI.ShowBoostScreen()
     
     GUI._BoostScreen = Screen
     
+    -- FULLSCREEN CENTERED BOOST IMAGE
     local BoostImage = Instance.new("ImageLabel")
     BoostImage.Size = UDim2.new(1, 0, 1, 0)
+    BoostImage.Position = UDim2.new(0.5, 0, 0.5, 0)
+    BoostImage.AnchorPoint = Vector2.new(0.5, 0.5)
     BoostImage.BackgroundTransparency = 1
     BoostImage.ScaleType = Enum.ScaleType.Crop
     BoostImage.ZIndex = GUI.ZLayers.ServerChange + 1
@@ -1737,6 +1790,6 @@ function GUI.Cleanup()
     GUI.MainFrame = nil
 end
 
-getgenv().HohosBountyRemake_v8_3 = GUI
+getgenv().HohosBountyRemake_v9_0 = GUI
 
 return GUI
