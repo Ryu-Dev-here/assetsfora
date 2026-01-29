@@ -791,85 +791,154 @@ end
 -- ASSET INITIALIZATION
 -- ============================================
 
+-- ============================================
+-- IMPROVED ASSET INITIALIZATION
+-- DROP-IN REPLACEMENT FOR InitAssets()
+-- ============================================
+
+-- This function REPLACES the old GUI.InitAssets() function
+-- Key improvements:
+-- 1. Properly checks if files exist before downloading
+-- 2. Verifies file integrity (size check)
+-- 3. Shows accurate progress based on what actually needs downloading
+-- 4. Doesn't re-download files that are already cached
+
 function GUI.InitAssets()
     local loader = GUI.CreateAdvancedLoader()
     if not loader then return end
     
     loader.Update(0.05, "Creating workspace...")
     
-    PersistentStorage:Init()
+    -- Ensure folders exist
+    pcall(function()
+        if not isfolder(WORKSPACE_FOLDER) then makefolder(WORKSPACE_FOLDER) end
+        if not isfolder(ASSETS_FOLDER) then makefolder(ASSETS_FOLDER) end
+    end)
     
-    task.wait(1)
+    task.wait(0.3)
     
-    loader.Update(0.15, "Preparing downloads...")
+    loader.Update(0.15, "Checking assets...")
     
+    -- Sort by priority
     table.sort(ASSETS, function(a, b)
         return (a.priority or 99) < (b.priority or 99)
     end)
     
+    -- Add all items to display
     for _, asset in ipairs(ASSETS) do
         loader.AddDownloadItem(asset.name)
     end
     
-    task.wait(0.3)
+    task.wait(0.2)
     
-    loader.UpdateDownloadItem("loading.png", 1, 0, "cached")
-    
-    local totalSize = 0
-    local downloadedSize = 0
-    local completedDownloads = 0
-    local lazyLoadCount = 0
+    -- ============================================
+    -- SMART FILE DETECTION - Check what exists
+    -- ============================================
+    local existingFiles = {}
+    local missingFiles = {}
+    local lazyLoadFiles = {}
     
     for _, asset in ipairs(ASSETS) do
-        totalSize = totalSize + asset.size
-    end
-    
-    for i, asset in ipairs(ASSETS) do
-        if asset.name == "loading.png" then 
-            loader.UpdateDownloadItem(asset.name, 1, asset.size, "cached")
-            completedDownloads = completedDownloads + 1
-            downloadedSize = downloadedSize + asset.size
-            continue 
-        end
+        local path = ASSETS_FOLDER .. "/" .. asset.name
         
         if asset.lazyLoad then
+            -- Mark lazy load files (like sound.mp3)
+            table.insert(lazyLoadFiles, asset)
             loader.UpdateDownloadItem(asset.name, 0, asset.size, "lazy")
-            lazyLoadCount = lazyLoadCount + 1
-            completedDownloads = completedDownloads + 1
-            downloadedSize = downloadedSize + asset.size
-        else
-            loader.Update(0.15 + (i - 1) * 0.6 / #ASSETS, "Downloading " .. asset.name .. "...")
+            print(string.format("[ASSET] ⏭ Lazy load: %s", asset.name))
             
-            AssetDownloader:DownloadAsset(asset, function(name, progress, size, status)
-                loader.UpdateDownloadItem(name, progress, size, status)
-                
-                if status == "complete" or status == "cached" then
-                    downloadedSize = downloadedSize + size
-                    completedDownloads = completedDownloads + 1
-                    local totalProgress = 0.15 + (downloadedSize / totalSize) * 0.6
-                    loader.Update(totalProgress, "Downloaded " .. name)
-                end
+        elseif isfile and isfile(path) then
+            -- File exists - verify it's valid
+            local success, content = pcall(function()
+                return readfile(path)
             end)
+            
+            if success and content and #content > 100 then
+                -- File is valid and cached
+                table.insert(existingFiles, asset)
+                loader.UpdateDownloadItem(asset.name, 1, asset.size, "cached")
+                print(string.format("[ASSET] ✓ Cached: %s (%d bytes)", asset.name, #content))
+            else
+                -- File exists but is corrupt
+                table.insert(missingFiles, asset)
+                loader.UpdateDownloadItem(asset.name, 0, asset.size, "corrupt")
+                print(string.format("[ASSET] ⚠️ Corrupt: %s", asset.name))
+            end
+        else
+            -- File doesn't exist
+            table.insert(missingFiles, asset)
+            print(string.format("[ASSET] ⏳ Missing: %s", asset.name))
         end
     end
     
-    loader.Update(0.8, "Waiting for downloads...")
-    local maxWaitTime = 30
-    local waitStartTime = tick()
+    -- Calculate totals
+    local cachedFiles = #existingFiles
+    local needDownload = #missingFiles
+    local lazyFiles = #lazyLoadFiles
     
-    while completedDownloads < #ASSETS and (tick() - waitStartTime) < maxWaitTime do
-        task.wait(0.1)
-    end
+    print(string.format("[ASSETS] 📊 Summary: %d cached, %d to download, %d lazy", 
+        cachedFiles, needDownload, lazyFiles))
     
-    if lazyLoadCount > 0 then
-        loader.Update(0.85, string.format("%d files marked for lazy load", lazyLoadCount))
+    -- ============================================
+    -- DOWNLOAD ONLY MISSING FILES
+    -- ============================================
+    if needDownload == 0 then
+        -- Everything is cached!
+        loader.Update(0.85, string.format("✅ All %d assets cached!", cachedFiles))
+        print("[ASSETS] ✅ No downloads needed!")
+        task.wait(0.5)
     else
-        loader.Update(0.85, "All downloads complete!")
+        -- Download missing files
+        loader.Update(0.25, string.format("📥 Downloading %d files...", needDownload))
+        
+        local completedDownloads = 0
+        
+        for i, asset in ipairs(missingFiles) do
+            -- Update progress bar
+            local progress = 0.25 + ((i - 1) / needDownload) * 0.55
+            loader.Update(progress, "Downloading " .. asset.name .. "...")
+            
+            -- Download this specific file
+            AssetDownloader:DownloadAsset(asset, function(name, prog, size, status)
+                loader.UpdateDownloadItem(name, prog, size, status)
+                
+                if status == "complete" or status == "cached" then
+                    completedDownloads = completedDownloads + 1
+                    local percentage = math.floor((completedDownloads / needDownload) * 100)
+                    print(string.format("[ASSET] ✅ %d/%d (%d%%) - %s", 
+                        completedDownloads, needDownload, percentage, name))
+                end
+            end)
+            
+            -- Small delay between downloads to prevent rate limiting
+            task.wait(0.1)
+        end
+        
+        -- Wait for all downloads to complete
+        loader.Update(0.80, "Finalizing downloads...")
+        local maxWait = 15
+        local waited = 0
+        
+        while completedDownloads < needDownload and waited < maxWait do
+            task.wait(0.5)
+            waited = waited + 0.5
+        end
+        
+        if completedDownloads >= needDownload then
+            loader.Update(0.85, string.format("✅ Downloaded %d/%d files!", completedDownloads, needDownload))
+            print(string.format("[ASSETS] ✅ All %d files downloaded!", completedDownloads))
+        else
+            loader.Update(0.85, string.format("⚠️ Downloaded %d/%d (timeout)", completedDownloads, needDownload))
+            warn(string.format("[ASSETS] ⚠️ Only %d/%d files downloaded", completedDownloads, needDownload))
+        end
     end
     
-    task.wait(0.5)
+    task.wait(0.3)
     
-    loader.Update(0.92, "Initializing systems...")
+    -- ============================================
+    -- INITIALIZE MUSIC SYSTEM
+    -- ============================================
+    loader.Update(0.90, "Initializing audio...")
     
     pcall(function()
         GUI.MusicSound = Instance.new("Sound")
@@ -878,8 +947,9 @@ function GUI.InitAssets()
         GUI.MusicSound.Volume = GUI.Config.MusicVolume
         GUI.MusicSound.Parent = SoundService
         
+        -- Lazy load music in background (doesn't block GUI)
         task.spawn(function()
-            task.wait(2)
+            task.wait(1)
             
             local musicAsset = nil
             for _, asset in ipairs(ASSETS) do
@@ -890,34 +960,54 @@ function GUI.InitAssets()
             end
             
             if musicAsset then
+                print("[MUSIC] 🎵 Starting lazy load...")
                 AssetDownloader:LazyLoadAsset(musicAsset, GUI.MusicSound, function(name, progress, size, status)
-                    print(string.format("[MUSIC] %s: %s", name, status))
-                end)
-                
-                local musicPath = ASSETS_FOLDER .. "/sound.mp3"
-                if isfile and isfile(musicPath) then
-                    if isfile and isfile(MUSIC_TIME_FILE) and readfile then
-                        local savedTime = tonumber(readfile(MUSIC_TIME_FILE))
-                        if savedTime and savedTime > 0 then
-                            GUI.MusicSound.TimePosition = savedTime
+                    if status == "complete" or status == "cached" then
+                        print("[MUSIC] ✅ Music ready!")
+                        
+                        -- Restore saved playback position
+                        if isfile and isfile(MUSIC_TIME_FILE) then
+                            local ok, savedTime = pcall(function()
+                                return tonumber(readfile(MUSIC_TIME_FILE))
+                            end)
+                            if ok and savedTime and savedTime > 0 then
+                                GUI.MusicSound.TimePosition = savedTime
+                                print(string.format("[MUSIC] ⏱️ Resumed at: %.1fs", savedTime))
+                            end
                         end
+                        
+                        -- Auto-play if enabled
+                        if GUI.Config.MusicEnabled then
+                            task.wait(0.5)
+                            GUI.MusicSound:Play()
+                            print("[MUSIC] ▶️ Now playing")
+                        end
+                    elseif status == "failed" then
+                        warn("[MUSIC] ❌ Failed to load music")
                     end
-                    
-                    if GUI.Config.MusicEnabled then
-                        GUI.MusicSound:Play()
-                    end
-                end
+                end)
             end
         end)
     end)
     
-    task.wait(0.5)
-    loader.Update(0.98, "Complete! Loading GUI...")
+    task.wait(0.3)
+    loader.Update(0.96, "Setting up teleport handler...")
     
-    task.wait(0.5)
+    -- Save music state on teleport
+    local teleportConnection = Players.LocalPlayer.OnTeleport:Connect(function()
+        GUI.SaveMusicState()
+    end)
+    GUI.AddConnection(teleportConnection)
+    
+    task.wait(0.2)
     loader.Update(1, "Ready!")
-    task.wait(0.8)
+    print("[GUI] ✅ Initialization complete!")
+    print(string.format("[GUI] 📊 Final stats: %d cached + %d downloaded + %d lazy = %d total", 
+        cachedFiles, needDownload, lazyFiles, #ASSETS))
+    
+    task.wait(0.6)
     loader.Complete()
+end
     
     local teleportConnection = Players.LocalPlayer.OnTeleport:Connect(function()
         GUI.SaveMusicState()
